@@ -62,10 +62,8 @@
 <body>
   <div class="card">
     <h1 class="logo">SPAGOCCi<span class="accent">Tube</span></h1>
-    <p>Accedi con un utente creato in Supabase Auth.</p>
+    <p>Accedi al pannello admin con la password privata del sito.</p>
     <form id="loginForm">
-      <label for="email">Email</label>
-      <input id="email" type="email" autocomplete="username" required>
       <label for="password">Password</label>
       <input id="password" type="password" autocomplete="current-password" required>
       <button type="submit">Entra nel pannello</button>
@@ -93,10 +91,7 @@
       event.preventDefault();
       feedback.textContent = 'Accesso in corso...';
       try {
-        await window.SpagocciStore.signIn(
-          document.getElementById('email').value.trim(),
-          document.getElementById('password').value
-        );
+        await window.SpagocciStore.signIn(document.getElementById('password').value);
         window.location.href = './admin.html';
       } catch (error) {
         feedback.textContent = error.message || 'Login non riuscito.';

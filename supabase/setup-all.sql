@@ -13,17 +13,7 @@ for select
 using (true);
 
 drop policy if exists "authenticated write site content" on public.site_content;
-create policy "authenticated write site content"
-on public.site_content
-for update
-using (auth.role() = 'authenticated')
-with check (auth.role() = 'authenticated');
-
 drop policy if exists "authenticated insert site content" on public.site_content;
-create policy "authenticated insert site content"
-on public.site_content
-for insert
-with check (auth.role() = 'authenticated');
 
 insert into public.site_content (slug, data)
 values ('main', '{}'::jsonb)

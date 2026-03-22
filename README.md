@@ -10,7 +10,7 @@ Il frontend pubblico e l'admin ora leggono/scrivono uno stato JSON in Supabase, 
 ## Cosa cambia
 
 - `public/index.html` usa Supabase per leggere il contenuto del canale
-- `public/admin.html` usa Supabase Auth per il login admin
+- `admin.html` usa una password privata verificata lato server da Cloudflare Pages Functions
 - i video normali non vengono più letti da `C:\Cloud\Video`
 - ogni video deve avere un `videoUrl` pubblico, per esempio:
   - `./videos/nomefile.mp4`
@@ -27,15 +27,18 @@ Questo crea:
 
 - tabella `site_content`
 - lettura pubblica
-- scrittura permessa agli utenti autenticati Supabase
+- nessuna scrittura pubblica diretta dal browser
 
-## 2. Crea un utente admin in Supabase Auth
+## 2. Configura i secret su Cloudflare Pages
 
-Nel pannello Supabase:
+Nel progetto Cloudflare Pages imposta questi secret:
 
-1. Vai in `Authentication`
-2. Crea un utente email/password
-3. Usa quelle credenziali in `public/login.html`
+1. `ADMIN_PASSWORD`
+2. `ADMIN_SESSION_SECRET`
+3. `SUPABASE_URL`
+4. `SUPABASE_SERVICE_ROLE_KEY`
+
+`ADMIN_PASSWORD` viene verificata lato server e non compare nel codice frontend pubblico.
 
 ## 3. Inserisci i dati iniziali
 

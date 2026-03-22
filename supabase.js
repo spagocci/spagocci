@@ -1,8 +1,6 @@
 (function () {
   const config = window.APP_CONFIG;
-  const supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
-    auth: { persistSession: true, autoRefreshToken: true }
-  });
+  const supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
   function defaultDb() {
     return {
@@ -87,32 +85,45 @@
 
   async function saveContent(nextDb) {
     const db = normalizeDb(nextDb);
-    const { error } = await supabase
-      .from('site_content')
-      .upsert({
-        slug: config.contentSlug,
-        data: db,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'slug' });
-    if (error) throw error;
-    return db;
+    const response = await fetch('./api/admin/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(db)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Salvataggio non riuscito.');
+    return normalizeDb(result.data || db);
   }
 
   async function requireSession() {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    return data.session || null;
+    const response = await fetch('./api/auth/session', {
+      credentials: 'same-origin'
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Verifica sessione non riuscita.');
+    return result.authenticated ? result : null;
   }
 
-  async function signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
+  async function signIn(password) {
+    const response = await fetch('./api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ password })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Login non riuscito.');
+    return result;
   }
 
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    const response = await fetch('./api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Logout non riuscito.');
+    return result;
   }
 
   function resolveAssetUrl(url) {
