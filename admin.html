@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPAGOCCiTube Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./admin.css">
+</head>
+<body class="admin-body">
+<div id="adminPanel">
+  <header class="admin-header">
+    <a href="./" class="logo">SPAGOCCi<span class="logo-accent">Tube</span></a>
+    <span class="admin-badge">Admin</span>
+    <button class="btn-logout" onclick="adminLogout()">Esci</button>
+  </header>
+
+  <div class="admin-layout">
+    <nav class="admin-sidebar">
+      <button class="admin-nav-item active" onclick="showTab('videos', this)">Video</button>
+      <button class="admin-nav-item" onclick="showTab('categories', this)">Categorie</button>
+      <button class="admin-nav-item" onclick="showTab('playlists', this)">Playlist</button>
+      <button class="admin-nav-item" onclick="showTab('order', this)">Ordine Home</button>
+      <button class="admin-nav-item" onclick="showTab('catorder', this)">Ordine Categorie</button>
+      <button class="admin-nav-item" onclick="showTab('stats', this)">Statistiche</button>
+    </nav>
+
+    <div class="admin-content">
+      <div class="admin-tab active" id="tab-videos">
+        <h2 class="admin-title">Video e contenuti</h2>
+        <div class="upload-form" style="max-width:860px;margin-bottom:20px">
+          <div style="font-size:13px;color:var(--text3)">
+            Questa versione usa hosting statico. Ogni video normale deve avere un URL pubblico, per esempio <code>./videos/nomefile.mp4</code> oppure un link CDN.
+          </div>
+        </div>
+
+        <div class="upload-form" style="max-width:800px;margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <span style="font-size:18px;font-weight:700;color:#fff">X</span>
+            <h3 style="font-size:14px;font-weight:600">Aggiungi video da X / Twitter</h3>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="grid-column:1/-1">
+              <label>URL del Tweet</label>
+              <input type="url" id="twitterUrl" placeholder="https://x.com/utente/status/...">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Titolo</label>
+              <input type="text" id="twitterTitle" placeholder="Titolo del video">
+            </div>
+            <div class="form-group">
+              <label>Categoria</label>
+              <select id="twitterCategory">
+                <option value="">Nessuna categoria</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Descrizione</label>
+            <textarea id="twitterDesc" rows="2" placeholder="Descrizione..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Thumbnail manuale opzionale</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                Scegli immagine
+                <input type="file" id="twitterThumbFile" accept="image/*" style="display:none" onchange="previewTwitterThumb(this)">
+              </label>
+              <span id="twitterThumbName" style="font-size:12px;color:var(--text3)">Nessuna immagine selezionata</span>
+            </div>
+            <div id="twitterThumbPreview" style="display:none;margin-top:8px">
+              <img id="twitterThumbImg" style="max-width:180px;border-radius:6px;border:1px solid var(--border)">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" style="width:auto" onclick="addTwitterVideo()">Aggiungi video X</button>
+          </div>
+          <div class="upload-feedback" id="twitterFeedback"></div>
+        </div>
+
+        <div class="manage-search">
+          <input type="text" placeholder="Cerca..." oninput="filterVideos(this.value)" id="videoSearch">
+        </div>
+        <div class="manage-list" id="videoList">
+          <div class="loading-state"><div class="spinner"></div><p>Caricamento...</p></div>
+        </div>
+      </div>
+
+      <div class="admin-tab" id="tab-categories">
+        <h2 class="admin-title">Categorie</h2>
+        <div class="upload-form">
+          <div class="form-group">
+            <label>Nome categoria</label>
+            <input type="text" id="newCatName" placeholder="Es: Tutorial, Vlog, AI...">
+          </div>
+          <button class="btn-primary" style="width:auto" onclick="createCategory()">Crea categoria</button>
+          <div class="upload-feedback" id="catFeedback"></div>
+        </div>
+        <div class="manage-list" id="catList"></div>
+      </div>
+
+      <div class="admin-tab" id="tab-playlists">
+        <h2 class="admin-title">Playlist</h2>
+        <div class="upload-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nome playlist</label>
+              <input type="text" id="newPlName" placeholder="Nome della playlist">
+            </div>
+            <div class="form-group">
+              <label>Descrizione</label>
+              <input type="text" id="newPlDesc" placeholder="Descrizione (opzionale)">
+            </div>
+          </div>
+          <button class="btn-primary" style="width:auto" onclick="createPlaylist()">Crea playlist</button>
+          <div class="upload-feedback" id="plFeedback"></div>
+        </div>
+        <div class="manage-list" id="plList"></div>
+      </div>
+
+      <div class="admin-tab" id="tab-order">
+        <h2 class="admin-title">Ordine Video nella Home</h2>
+        <button class="btn-secondary" onclick="saveOrder()" style="margin-bottom:16px">Salva ordine</button>
+        <div class="upload-feedback" id="orderFeedback"></div>
+        <div class="manage-list" id="orderList"></div>
+      </div>
+
+      <div class="admin-tab" id="tab-catorder">
+        <h2 class="admin-title">Ordine Video nelle Categorie</h2>
+        <div class="cat-order-selector" id="catOrderSelector"></div>
+        <div id="catOrderContent" style="margin-top:20px">
+          <div class="loading-state" style="padding:32px 0">
+            <p style="color:var(--text3)">Seleziona una categoria per iniziare</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tab" id="tab-stats">
+        <h2 class="admin-title">Statistiche</h2>
+        <div class="upload-form" style="max-width:480px;margin-bottom:28px">
+          <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Avatar canale</h3>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div id="adminAvatarPreview" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#ff3c00,#ff6b35);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:24px;color:#fff;overflow:hidden;flex-shrink:0;border:2px solid var(--border)">DS</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label class="btn-primary" style="width:auto;cursor:pointer;display:inline-flex;gap:8px;align-items:center">
+                Scegli immagine / GIF
+                <input type="file" accept="image/*" style="display:none" onchange="adminUploadAvatar(this)">
+              </label>
+              <button class="btn-secondary" onclick="adminRemoveAvatar()">Rimuovi avatar</button>
+            </div>
+          </div>
+          <div class="upload-feedback" id="avatarFeedback" style="margin-top:10px"></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-number" id="statTotal">0</div><div class="stat-label">Video totali</div></div>
+          <div class="stat-card"><div class="stat-number" id="statShorts">0</div><div class="stat-label">Shorts</div></div>
+          <div class="stat-card"><div class="stat-number" id="statCats">0</div><div class="stat-label">Categorie</div></div>
+          <div class="stat-card"><div class="stat-number" id="statPls">0</div><div class="stat-label">Playlist</div></div>
+          <div class="stat-card"><div class="stat-number" id="statViews">0</div><div class="stat-label">Visualizzazioni</div></div>
+        </div>
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:12px">Video più visti</h3>
+        <div id="topVideos"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal-content admin-modal" style="max-width:680px">
+    <button class="modal-close" onclick="closeEditModal()">×</button>
+    <h3 class="admin-title">Modifica Video</h3>
+    <input type="hidden" id="editFilename">
+    <input type="hidden" id="editVideoType">
+
+    <div class="form-group">
+      <label>Titolo</label>
+      <input type="text" id="editTitle">
+    </div>
+    <div class="form-group">
+      <label>Descrizione</label>
+      <textarea id="editDesc" rows="2"></textarea>
+    </div>
+
+    <div id="editLocalSection">
+      <div class="form-group">
+        <label>URL video pubblico</label>
+        <input type="url" id="editVideoUrl" placeholder="./videos/nomefile.mp4 o https://...">
+      </div>
+      <div class="form-group">
+        <label>Thumbnail</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            Carica immagine
+            <input type="file" id="editThumbFile" accept="image/*" style="display:none" onchange="uploadManualThumb(this)">
+          </label>
+        </div>
+        <div id="thumbCaptureArea" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px">
+          <video id="thumbVideo" style="width:100%;display:block;max-height:260px;background:#000;cursor:pointer" preload="metadata" onclick="toggleThumbPlay()"></video>
+        </div>
+        <input type="range" id="thumbScrubber" min="0" max="100" step="0.1" value="0" style="width:100%;accent-color:var(--accent);margin-bottom:8px" oninput="scrubVideo(this.value)">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="toggleThumbPlay()" id="thumbPlayBtn" type="button">Play</button>
+          <button class="btn-primary" style="width:auto" onclick="captureThumbFrame()" type="button">Cattura questo frame</button>
+          <span id="thumbTimeDisplay" style="color:var(--text3);font-size:12px"></span>
+        </div>
+        <div id="thumbCapturedPreview" style="display:none;margin-top:12px">
+          <p style="font-size:12px;color:var(--text3);margin-bottom:6px">Thumbnail salvata:</p>
+          <img id="thumbCapturedImg" style="max-width:200px;border-radius:6px;border:1px solid var(--border)">
+        </div>
+        <canvas id="thumbCanvas" style="display:none"></canvas>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Durata (es: 3:16)</label>
+          <input type="text" id="editDuration" placeholder="0:00">
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="editType">
+            <option value="video">Video</option>
+            <option value="short">Short</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="editTwitterSection" style="display:none">
+      <div class="form-group">
+        <label>URL Tweet X</label>
+        <input type="url" id="editTweetUrl" placeholder="https://x.com/...">
+      </div>
+      <div class="form-group">
+        <label>Thumbnail</label>
+        <div id="editTwitterThumbPreview" style="margin-bottom:8px;display:none">
+          <img id="editTwitterThumbImg" style="max-width:200px;border-radius:6px;border:1px solid var(--border)">
+        </div>
+        <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          Carica manuale
+          <input type="file" id="editTwitterThumbFile" accept="image/*" style="display:none" onchange="uploadEditTwitterThumb(this)">
+        </label>
+        <div class="upload-feedback" id="editTwitterThumbFeedback" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="editCategory"><option value="">Nessuna categoria</option></select>
+      </div>
+      <div class="form-group">
+        <label>Playlist</label>
+        <select id="editPlaylist"><option value="">Nessuna playlist</option></select>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-primary" onclick="saveVideoEdit()">Salva</button>
+    </div>
+    <div class="upload-feedback" id="editFeedback"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
+<script src="./supabase.js"></script>
+<script src="./admin.js"></script>
+</body>
+</html>

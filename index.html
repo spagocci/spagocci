@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPAGOCCiTube</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css?v=BUILDVER">
+</head>
+<body>
+<header class="header">
+  <div class="header-left">
+    <a href="./admin.html" class="admin-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+      Admin
+    </a>
+  </div>
+  <div class="header-center">
+    <a href="./" class="logo">
+      <span class="logo-text">SPAGOCCi<span class="logo-accent">Tube</span></span>
+    </a>
+  </div>
+  <div class="header-right">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Cerca..." oninput="searchVideos(this.value)">
+      <button class="search-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+    </div>
+    <button class="menu-btn" id="menuBtn" onclick="toggleSidebar()">
+      Menu
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="dropdown-menu" id="sidebar">
+  <nav class="dropdown-nav">
+    <a href="#" class="dropdown-item" onclick="filterBySection('all'); closeSidebar(); return false;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      Home
+    </a>
+    <a href="#" class="dropdown-item" onclick="filterBySection('videos'); closeSidebar(); return false;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+      Tutti i Video
+    </a>
+    <a href="#" class="dropdown-item" onclick="filterBySection('playlists'); closeSidebar(); return false;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18A2.5 2.5 0 1 0 19 17V8h3V6h-5z"/></svg>
+      Playlist
+    </a>
+    <div class="dropdown-divider"></div>
+    <div id="dropdownCategories"></div>
+  </nav>
+</div>
+<div class="menu-overlay" id="menuOverlay" onclick="closeSidebar()"></div>
+
+<main class="main" id="main">
+  <div class="channel-banner">
+    <div class="channel-avatar" id="channelAvatar" onclick="adminAvatarClick()">DS</div>
+    <div class="channel-info">
+      <h1 class="channel-name">Davide Spagocci</h1>
+      <div class="channel-meta-row">
+        <p class="channel-meta"><span id="videoCount">0</span> video</p>
+        <div class="channel-search-bar">
+          <input type="text" id="channelSearchInput" placeholder="Cerca..." oninput="searchVideos(this.value)">
+          <button class="search-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+        </div>
+      </div>
+      <p class="channel-handle">@DavideSpagocci</p>
+    </div>
+  </div>
+  <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="uploadChannelAvatar(this)">
+  <div class="top-tabs-bar" id="topTabsBar"></div>
+  <div id="mainContent"></div>
+</main>
+
+<div class="modal-overlay" id="videoModal" onclick="closeModal(event)">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeVideoModal()">×</button>
+    <div class="video-player-wrapper" id="videoPlayerWrapper"></div>
+    <div class="modal-info">
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <p class="modal-meta" id="modalMeta"></p>
+      <p class="modal-desc" id="modalDesc"></p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
+<script src="./supabase.js"></script>
+<script src="./app.js?v=BUILDVER"></script>
+</body>
+</html>

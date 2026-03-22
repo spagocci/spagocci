@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPAGOCCiTube Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    font-family: 'DM Sans', sans-serif;
+    background:
+      radial-gradient(circle at top, rgba(255, 90, 31, 0.24), transparent 42%),
+      linear-gradient(180deg, #18110f 0%, #090909 100%);
+    color: #f5f2ef;
+  }
+  .card {
+    width: min(100%, 420px);
+    padding: 32px;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(19, 16, 15, 0.88);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 1px;
+    margin: 0 0 8px;
+  }
+  .accent { color: #ff5a1f; }
+  p { color: #c4b8b2; margin: 0 0 20px; }
+  label { display: block; margin: 0 0 8px; font-size: 14px; color: #efe4df; }
+  input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: #0f0d0c;
+    color: #fff;
+    margin: 0 0 16px;
+  }
+  button {
+    width: 100%;
+    padding: 14px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ff6b2c, #ff3c00);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .msg { margin-top: 14px; font-size: 14px; min-height: 20px; color: #ffb39b; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1 class="logo">SPAGOCCi<span class="accent">Tube</span></h1>
+    <p>Accedi con un utente creato in Supabase Auth.</p>
+    <form id="loginForm">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Entra nel pannello</button>
+    </form>
+    <div class="msg" id="loginFeedback"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+  <script src="./supabase.js"></script>
+  <script>
+    const form = document.getElementById('loginForm');
+    const feedback = document.getElementById('loginFeedback');
+
+    (async () => {
+      try {
+        const session = await window.SpagocciStore.requireSession();
+        if (session) window.location.href = './admin.html';
+      } catch (error) {
+        feedback.textContent = error.message;
+      }
+    })();
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      feedback.textContent = 'Accesso in corso...';
+      try {
+        await window.SpagocciStore.signIn(
+          document.getElementById('email').value.trim(),
+          document.getElementById('password').value
+        );
+        window.location.href = './admin.html';
+      } catch (error) {
+        feedback.textContent = error.message || 'Login non riuscito.';
+      }
+    });
+  </script>
+</body>
+</html>
