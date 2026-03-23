@@ -67,6 +67,13 @@ function resolveAsset(url) {
   return window.SpagocciStore.resolveAssetUrl(url);
 }
 
+function isTwitterVideo(video) {
+  if (!video) return false;
+  return video.type === 'twitter'
+    || !!video.tweetId
+    || !!window.SpagocciStore.parseTweetId(video.tweetUrl || video.videoUrl || '');
+}
+
 function feedback(id, msg, type = '') {
   const el = document.getElementById(id);
   if (!el) return;
@@ -145,8 +152,12 @@ async function addTwitterVideo() {
   renderAll();
 }
 
-async function deleteTwitterVideo(filename) {
-  if (!confirm('Rimuovere questo video X?')) return;
+async function deleteVideo(filename) {
+  const video = db.videos[filename];
+  if (!video) return;
+  const isTwitter = isTwitterVideo(video);
+  const sourceLabel = isTwitter ? 'questo video X' : 'questo video';
+  if (!confirm(`Rimuovere ${sourceLabel} dal sito?${isTwitter ? '' : ' Il file sorgente non verrà cancellato dal repository.'}`)) return;
   delete db.videos[filename];
   db.videoOrder = db.videoOrder.filter((item) => item !== filename);
   db.categories.forEach((category) => {
@@ -165,9 +176,9 @@ function renderVideoList(videos) {
   list.innerHTML = videos.map((video) => {
     const category = db.categories.find((item) => item.id === video.categoryId);
     const playlist = db.playlists.find((item) => item.id === video.playlistId);
-    const isTwitter = video.type === 'twitter';
+    const isTwitter = isTwitterVideo(video);
     const thumb = resolveAsset(video.thumbnail);
-    return `<div class="manage-item" id="vi-${CSS.escape(video.filename)}"><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden;position:relative">${thumb ? `<img src="${escapeHtml(thumb)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : isTwitter ? '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#000;color:#fff;font-size:18px;font-weight:700">X</div>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${isTwitter ? 'X / Twitter' : video.type === 'short' ? 'Short' : 'Video'}${category ? ` · ${escapeHtml(category.name)}` : ''}${playlist ? ` · ${escapeHtml(playlist.name)}` : ''}${!isTwitter ? ` · ${escapeHtml(video.videoUrl || 'URL mancante')}` : ''}</div></div><div class="manage-actions"><button class="btn-edit" onclick="openEditModal('${escapeHtml(video.filename)}')">Modifica</button>${isTwitter ? `<button class="btn-delete" onclick="deleteTwitterVideo('${escapeHtml(video.filename)}')">Rimuovi</button>` : ''}</div></div>`;
+    return `<div class="manage-item" id="vi-${CSS.escape(video.filename)}"><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden;position:relative">${thumb ? `<img src="${escapeHtml(thumb)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : isTwitter ? '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#000;color:#fff;font-size:18px;font-weight:700">X</div>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${isTwitter ? 'X / Twitter' : video.type === 'short' ? 'Short' : 'Video'}${category ? ` - ${escapeHtml(category.name)}` : ''}${playlist ? ` - ${escapeHtml(playlist.name)}` : ''}${!isTwitter ? ` - ${escapeHtml(video.videoUrl || 'URL mancante')}` : ''}</div></div><div class="manage-actions"><button class="btn-edit" onclick="openEditModal('${escapeHtml(video.filename)}')">Modifica</button><button class="btn-delete" onclick="deleteVideo('${escapeHtml(video.filename)}')">Rimuovi</button></div></div>`;
   }).join('');
 }
 
@@ -344,7 +355,7 @@ async function adminRemoveAvatar() {
 function openEditModal(filename) {
   const video = db.videos[filename];
   if (!video) return;
-  const isTwitter = video.type === 'twitter';
+  const isTwitter = isTwitterVideo(video);
   populateSelects();
   document.getElementById('editFilename').value = filename;
   document.getElementById('editVideoType').value = video.type || 'video';
@@ -356,7 +367,7 @@ function openEditModal(filename) {
   document.getElementById('editTwitterSection').style.display = isTwitter ? 'block' : 'none';
 
   if (isTwitter) {
-    document.getElementById('editTweetUrl').value = video.tweetUrl || '';
+    document.getElementById('editTweetUrl').value = video.tweetUrl || video.videoUrl || '';
     showEditTwitterThumb(video.thumbnail || '');
   } else {
     document.getElementById('editDuration').value = video.duration || '';
@@ -479,7 +490,7 @@ async function captureThumbFrame() {
 async function saveVideoEdit() {
   const filename = document.getElementById('editFilename').value;
   const originalType = document.getElementById('editVideoType').value;
-  const isTwitter = originalType === 'twitter';
+  const isTwitter = originalType === 'twitter' || isTwitterVideo(db.videos[filename]);
   const update = {
     title: document.getElementById('editTitle').value.trim(),
     description: document.getElementById('editDesc').value.trim(),
@@ -492,6 +503,8 @@ async function saveVideoEdit() {
     update.type = 'twitter';
     update.tweetUrl = document.getElementById('editTweetUrl').value.trim();
     update.tweetId = window.SpagocciStore.parseTweetId(update.tweetUrl);
+    update.videoUrl = '';
+    if (!update.tweetId) return feedback('editFeedback', 'Inserisci un URL tweet valido.', 'error');
   } else {
     update.type = document.getElementById('editType').value;
     update.duration = document.getElementById('editDuration').value.trim();

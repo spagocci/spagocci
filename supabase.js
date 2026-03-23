@@ -19,6 +19,15 @@
     return `./videos/${encodeURIComponent(filename).replace(/%2F/g, '/')}`;
   }
 
+  function parseTweetId(tweetUrl) {
+    const match = String(tweetUrl || '').match(/status\/(\d+)/i);
+    return match ? match[1] : '';
+  }
+
+  function isTwitterUrl(url) {
+    return /(^https?:\/\/)?(www\.)?(x|twitter)\.com\//i.test(String(url || '').trim());
+  }
+
   function normalizeDb(raw) {
     const db = { ...defaultDb(), ...(raw || {}) };
     if (!db.videos || typeof db.videos !== 'object') db.videos = {};
@@ -27,7 +36,7 @@
     if (!Array.isArray(db.videoOrder)) db.videoOrder = [];
 
     Object.entries(db.videos).forEach(([filename, video]) => {
-      db.videos[filename] = {
+      const normalizedVideo = {
         title: filename,
         description: '',
         thumbnail: '',
@@ -40,6 +49,19 @@
         videoUrl: guessVideoUrl(filename),
         ...video
       };
+
+      const tweetUrl = normalizedVideo.tweetUrl || (isTwitterUrl(normalizedVideo.videoUrl) ? normalizedVideo.videoUrl : '');
+      const tweetId = normalizedVideo.tweetId || parseTweetId(tweetUrl);
+
+      if (tweetId) {
+        normalizedVideo.type = 'twitter';
+        normalizedVideo.tweetUrl = tweetUrl;
+        normalizedVideo.tweetId = tweetId;
+        normalizedVideo.videoUrl = '';
+        normalizedVideo.duration = normalizedVideo.duration || '';
+      }
+
+      db.videos[filename] = normalizedVideo;
     });
 
     db.categories = db.categories.map((category, index) => ({
@@ -134,11 +156,6 @@
     return url;
   }
 
-  function parseTweetId(tweetUrl) {
-    const match = String(tweetUrl || '').match(/status\/(\d+)/i);
-    return match ? match[1] : '';
-  }
-
   function fileToDataUrl(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -159,6 +176,7 @@
     signIn,
     signOut,
     resolveAssetUrl,
+    isTwitterUrl,
     parseTweetId,
     fileToDataUrl
   };

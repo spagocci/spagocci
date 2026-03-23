@@ -13,6 +13,13 @@ const USATO_NOTIFY_ENABLED_KEY = 'spagocci-usato-notify-enabled';
 const USATO_SEEN_KEY = 'spagocci-usato-seen-v1';
 const USATO_POLL_MS = 30000;
 
+function isTwitterVideo(video) {
+  if (!video) return false;
+  return video.type === 'twitter'
+    || !!video.tweetId
+    || !!window.SpagocciStore.parseTweetId(video.tweetUrl || video.videoUrl || '');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   await checkAdminSession();
@@ -215,8 +222,8 @@ function scrollRow(rowId, direction) {
 
 function videoCard(video) {
   const thumb = resolveAsset(video.thumbnail || '');
-  const isTwitter = video.type === 'twitter';
-  return `<div class="video-card" onclick="openVideo('${escapeHtml(video.filename)}')"><div class="video-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(video.title)}" loading="lazy" onerror="this.style.display='none'">` : isTwitter ? '<div class="video-thumb-placeholder twitter-placeholder">X</div>' : '<div class="video-thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'}<div class="play-overlay"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>${video.duration ? `<span class="duration-badge">${escapeHtml(video.duration)}</span>` : ''}</div><div class="video-info"><div class="video-title">${escapeHtml(video.title)}</div><div class="video-meta"><span>${video.views || 0} visualizzazioni</span><span>·</span><span>${getTimeAgo(video.addedAt)}</span></div></div></div>`;
+  const isTwitter = isTwitterVideo(video);
+  return `<div class="video-card" onclick="openVideo('${escapeHtml(video.filename)}')"><div class="video-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(video.title)}" loading="lazy" onerror="this.style.display='none'">` : isTwitter ? '<div class="video-thumb-placeholder twitter-placeholder">X</div>' : '<div class="video-thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'}<div class="play-overlay"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>${video.duration ? `<span class="duration-badge">${escapeHtml(video.duration)}</span>` : ''}${isTwitter ? '<span class="x-badge">X</span>' : ''}</div><div class="video-info"><div class="video-title">${escapeHtml(video.title)}</div><div class="video-meta"><span>${video.views || 0} visualizzazioni</span><span>·</span><span>${getTimeAgo(video.addedAt)}</span></div></div></div>`;
 }
 
 function playlistCard(playlist) {
@@ -237,16 +244,17 @@ function openVideo(filename, pushState = true) {
   if (!video) return;
 
   const wrapper = document.getElementById('videoPlayerWrapper');
-  if (video.type === 'twitter') {
+  if (isTwitterVideo(video)) {
+    const tweetId = video.tweetId || window.SpagocciStore.parseTweetId(video.tweetUrl || video.videoUrl || '');
     wrapper.innerHTML = `<div id="tweetEmbedContainer" style="position:absolute;top:0;left:0;width:100%;height:100%;background:#000;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:center;overflow-y:auto;"><div id="tweetEmbed" style="width:100%;max-width:550px;padding:12px"></div></div>`;
     if (!window.twttr) {
       const script = document.createElement('script');
       script.src = 'https://platform.twitter.com/widgets.js';
       script.async = true;
-      script.onload = () => renderTweetEmbed(video.tweetId);
+      script.onload = () => renderTweetEmbed(tweetId);
       document.head.appendChild(script);
     } else {
-      renderTweetEmbed(video.tweetId);
+      renderTweetEmbed(tweetId);
     }
   } else {
     const videoUrl = resolveAsset(video.videoUrl || '');
