@@ -21,9 +21,6 @@
   </div>
   <div class="header-center" aria-hidden="true"></div>
   <div class="header-right">
-    <button class="notify-btn" id="notifyUsatoBtn" type="button" onclick="toggleUsatoNotifications()">
-      Avvisi USATO
-    </button>
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Cerca..." oninput="searchVideos(this.value)">
       <button class="search-btn">
@@ -62,7 +59,12 @@
   <div class="channel-banner">
     <div class="channel-avatar" id="channelAvatar" onclick="adminAvatarClick()">DS</div>
     <div class="channel-info">
-      <h1 class="channel-name">Davide Spagocci</h1>
+      <div class="channel-title-row">
+        <h1 class="channel-name">Davide Spagocci</h1>
+        <button class="notify-btn channel-notify-btn" id="notifyUsatoBtn" type="button" onclick="toggleUsatoNotifications()">
+          Attiva Notifiche USATO
+        </button>
+      </div>
       <div class="channel-meta-row">
         <p class="channel-meta"><span id="videoCount">0</span> video</p>
         <div class="channel-search-bar">

@@ -472,7 +472,7 @@ function updateUsatoNotifyButton() {
   if (!button) return;
   const enabled = isUsatoNotifyEnabled();
   button.classList.toggle('active', enabled);
-  button.textContent = enabled ? 'Avvisi USATO attivi' : 'Avvisi USATO';
+  button.textContent = enabled ? 'Notifiche Attivate!' : 'Attiva Notifiche USATO';
 }
 
 function getUsatoCategoryIds(sourceDb) {
