@@ -3,10 +3,20 @@ let currentSection = 'all';
 let menuCloseTimer = null;
 let sidebarOpen = false;
 let rowIdCounter = 0;
+let usatoWatcherReady = false;
+let usatoPollTimer = null;
+let notifyToastTimer = null;
+let audioContext = null;
+
+const USATO_CATEGORY_NAME = 'usato';
+const USATO_NOTIFY_ENABLED_KEY = 'spagocci-usato-notify-enabled';
+const USATO_SEEN_KEY = 'spagocci-usato-seen-v1';
+const USATO_POLL_MS = 30000;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   await checkAdminSession();
+  await initNotificationSystem();
 
   const channelInput = document.getElementById('channelSearchInput');
   const headerInput = document.getElementById('searchInput');
@@ -32,6 +42,7 @@ window.addEventListener('popstate', () => {
 
 async function loadData() {
   try {
+    const previousDb = db;
     db = await window.SpagocciStore.loadContent();
     document.querySelector('.channel-name').textContent = db.channelName || window.APP_CONFIG.channelName;
     document.querySelector('.channel-handle').textContent = db.channelHandle || window.APP_CONFIG.channelHandle;
@@ -39,7 +50,9 @@ async function loadData() {
     renderChannelAvatar(db.channelAvatar);
     renderTopTabs();
     renderDropdownCategories();
+    updateUsatoNotifyButton();
     renderSection(currentSection);
+    syncUsatoSeenState(previousDb, db);
   } catch (error) {
     document.getElementById('mainContent').innerHTML =
       `<div class="empty-state"><p>Errore caricamento: ${escapeHtml(error.message)}</p></div>`;
@@ -364,4 +377,217 @@ function initRowDragScroll() {
       el.scrollLeft = scrollLeft - (x - startX) * 1.5;
     });
   });
+}
+
+async function initNotificationSystem() {
+  updateUsatoNotifyButton();
+  await registerNotificationServiceWorker();
+  syncUsatoSeenState(null, db);
+  startUsatoPolling();
+}
+
+function startUsatoPolling() {
+  clearInterval(usatoPollTimer);
+  usatoPollTimer = setInterval(async () => {
+    try {
+      const nextDb = await window.SpagocciStore.loadContent();
+      const changed = JSON.stringify(nextDb.videoOrder) !== JSON.stringify(db.videoOrder)
+        || JSON.stringify(nextDb.videos) !== JSON.stringify(db.videos)
+        || JSON.stringify(nextDb.categories) !== JSON.stringify(db.categories);
+      if (!changed) return;
+      const previousDb = db;
+      db = nextDb;
+      document.getElementById('videoCount').textContent = Object.keys(db.videos).length;
+      renderTopTabs();
+      renderDropdownCategories();
+      renderSection(currentSection);
+      syncUsatoSeenState(previousDb, db);
+    } catch (_) {}
+  }, USATO_POLL_MS);
+}
+
+async function registerNotificationServiceWorker() {
+  if (!('serviceWorker' in navigator)) return null;
+  try {
+    return await navigator.serviceWorker.register('./sw.js');
+  } catch (_) {
+    return null;
+  }
+}
+
+function toggleUsatoNotifications() {
+  if (isUsatoNotifyEnabled()) {
+    setUsatoNotifyEnabled(false);
+    showNotifyToast('Avvisi USATO disattivati.');
+    return;
+  }
+  enableUsatoNotifications();
+}
+
+async function enableUsatoNotifications() {
+  if (!('Notification' in window)) {
+    showNotifyToast('Questo browser non supporta le notifiche popup.');
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    showNotifyToast('Le notifiche sono bloccate dal browser.');
+    return;
+  }
+
+  if (Notification.permission !== 'granted') {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      showNotifyToast('Permesso notifiche non concesso.');
+      return;
+    }
+  }
+
+  setUsatoNotifyEnabled(true);
+  syncUsatoSeenState(null, db, true);
+  prepareAudioContext();
+  showNotifyToast('Avvisi USATO attivati su questo dispositivo.');
+}
+
+function isUsatoNotifyEnabled() {
+  return window.localStorage.getItem(USATO_NOTIFY_ENABLED_KEY) === '1';
+}
+
+function setUsatoNotifyEnabled(enabled) {
+  if (enabled) window.localStorage.setItem(USATO_NOTIFY_ENABLED_KEY, '1');
+  else window.localStorage.removeItem(USATO_NOTIFY_ENABLED_KEY);
+  updateUsatoNotifyButton();
+}
+
+function updateUsatoNotifyButton() {
+  const button = document.getElementById('notifyUsatoBtn');
+  if (!button) return;
+  const enabled = isUsatoNotifyEnabled();
+  button.classList.toggle('active', enabled);
+  button.textContent = enabled ? 'Avvisi USATO attivi' : 'Avvisi USATO';
+}
+
+function getUsatoCategoryIds(sourceDb) {
+  return (sourceDb?.categories || [])
+    .filter((category) => String(category.name || '').trim().toLowerCase() === USATO_CATEGORY_NAME)
+    .map((category) => category.id);
+}
+
+function getUsatoVideos(sourceDb) {
+  const usatoIds = new Set(getUsatoCategoryIds(sourceDb));
+  if (!usatoIds.size) return [];
+  return Object.entries(sourceDb?.videos || {})
+    .filter(([, video]) => usatoIds.has(video.categoryId))
+    .map(([filename, video]) => ({ filename, ...video }));
+}
+
+function getStoredUsatoSeen() {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(USATO_SEEN_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function setStoredUsatoSeen(items) {
+  window.localStorage.setItem(USATO_SEEN_KEY, JSON.stringify(items.slice(-120)));
+}
+
+function syncUsatoSeenState(previousDb, nextDb, resetBaseline = false) {
+  const nextUsato = getUsatoVideos(nextDb);
+  const nextKeys = nextUsato.map((video) => video.filename);
+
+  if (!usatoWatcherReady || resetBaseline) {
+    setStoredUsatoSeen(nextKeys);
+    usatoWatcherReady = true;
+    return;
+  }
+
+  const previousKeys = new Set(previousDb ? getUsatoVideos(previousDb).map((video) => video.filename) : getStoredUsatoSeen());
+  const storedKeys = new Set(getStoredUsatoSeen());
+  const newVideos = nextUsato.filter((video) => !previousKeys.has(video.filename) && !storedKeys.has(video.filename));
+
+  if (newVideos.length && isUsatoNotifyEnabled()) {
+    newVideos.forEach((video) => notifyNewUsatoVideo(video));
+  }
+
+  setStoredUsatoSeen(nextKeys);
+}
+
+async function notifyNewUsatoVideo(video) {
+  const title = video.title || 'Nuovo video usato';
+  const message = `Nuovo video nella categoria usato: ${title}`;
+  showNotifyToast(message);
+  await playNotificationSound();
+
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const registration = await navigator.serviceWorker.getRegistration().catch(() => null);
+  const notificationData = {
+    body: message,
+    icon: resolveAsset(db.channelAvatar || '/channel-avatar.gif'),
+    badge: resolveAsset('/channel-avatar.gif'),
+    image: video.thumbnail ? resolveAsset(video.thumbnail) : undefined,
+    tag: `usato-${video.filename}`,
+    data: {
+      url: `${window.location.origin}${window.location.pathname}?video=${encodeURIComponent(video.filename)}`
+    },
+    vibrate: [180, 80, 180]
+  };
+
+  if (registration?.showNotification) {
+    await registration.showNotification('Nuovo usato disponibile', notificationData);
+    return;
+  }
+
+  const notification = new Notification('Nuovo usato disponibile', notificationData);
+  notification.onclick = () => {
+    window.focus();
+    window.location.href = notificationData.data.url;
+    notification.close();
+  };
+}
+
+function prepareAudioContext() {
+  if (!window.AudioContext && !window.webkitAudioContext) return null;
+  if (!audioContext) {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioCtor();
+  }
+  if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+  return audioContext;
+}
+
+async function playNotificationSound() {
+  const context = prepareAudioContext();
+  if (!context) return;
+
+  const duration = 0.16;
+  const now = context.currentTime;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+
+  oscillator.type = 'triangle';
+  oscillator.frequency.setValueAtTime(880, now);
+  oscillator.frequency.exponentialRampToValueAtTime(1320, now + duration);
+  gain.gain.setValueAtTime(0.001, now);
+  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(now);
+  oscillator.stop(now + duration);
+}
+
+function showNotifyToast(message) {
+  const toast = document.getElementById('notifyToast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('visible');
+  clearTimeout(notifyToastTimer);
+  notifyToastTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+  }, 3200);
 }
