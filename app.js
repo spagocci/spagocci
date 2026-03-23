@@ -524,8 +524,8 @@ function syncUsatoSeenState(previousDb, nextDb, resetBaseline = false) {
 }
 
 async function notifyNewUsatoVideo(video) {
-  const title = video.title || 'Nuovo video usato';
-  const message = `Nuovo video nella categoria usato: ${title}`;
+  const title = video.title || 'Nuovo oggetto disponibile';
+  const message = title;
   showNotifyToast(message);
   await playNotificationSound();
 
@@ -545,11 +545,11 @@ async function notifyNewUsatoVideo(video) {
   };
 
   if (registration?.showNotification) {
-    await registration.showNotification('Nuovo usato disponibile', notificationData);
+    await registration.showNotification('Nuovo oggetto disponibile', notificationData);
     return;
   }
 
-  const notification = new Notification('Nuovo usato disponibile', notificationData);
+  const notification = new Notification('Nuovo oggetto disponibile', notificationData);
   notification.onclick = () => {
     window.focus();
     window.location.href = notificationData.data.url;
