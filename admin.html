@@ -195,10 +195,13 @@
         <div id="editTwitterThumbPreview" style="margin-bottom:8px;display:none">
           <img id="editTwitterThumbImg" style="max-width:200px;border-radius:6px;border:1px solid var(--border)">
         </div>
-        <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-          Carica manuale
-          <input type="file" id="editTwitterThumbFile" accept="image/*" style="display:none" onchange="uploadEditTwitterThumb(this)">
-        </label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn-secondary" type="button" onclick="retryTwitterThumb()">Recupera da X</button>
+          <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            Carica manuale
+            <input type="file" id="editTwitterThumbFile" accept="image/*" style="display:none" onchange="uploadEditTwitterThumb(this)">
+          </label>
+        </div>
         <div class="upload-feedback" id="editTwitterThumbFeedback" style="margin-top:8px"></div>
       </div>
     </div>

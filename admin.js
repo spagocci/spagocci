@@ -108,6 +108,20 @@ function previewTwitterThumb(input) {
   }).catch((error) => feedback('twitterFeedback', error.message, 'error'));
 }
 
+async function fetchTwitterThumbFromBackend(tweetUrl) {
+  const response = await fetch('./api/admin/twitter-thumb', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ tweetUrl })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.error || result.message || 'Recupero thumbnail non riuscito.');
+  }
+  return result;
+}
+
 async function addTwitterVideo() {
   const tweetUrl = document.getElementById('twitterUrl').value.trim();
   const title = document.getElementById('twitterTitle').value.trim();
@@ -115,13 +129,28 @@ async function addTwitterVideo() {
   const categoryId = document.getElementById('twitterCategory').value || null;
   const tweetId = window.SpagocciStore.parseTweetId(tweetUrl);
   if (!tweetUrl || !tweetId) return feedback('twitterFeedback', 'Inserisci un URL tweet valido.', 'error');
-  if (!title) return feedback('twitterFeedback', 'Il titolo è obbligatorio.', 'error');
+  if (!title) return feedback('twitterFeedback', "Il titolo e' obbligatorio.", 'error');
+
+  let resolvedThumb = twitterThumbDataUrl || '';
+  let successMessage = 'Video X aggiunto.';
+  if (!resolvedThumb) {
+    feedback('twitterFeedback', 'Recupero thumbnail da X...', '');
+    try {
+      const result = await fetchTwitterThumbFromBackend(tweetUrl);
+      if (result?.ok && result.thumbnail) {
+        resolvedThumb = result.thumbnail;
+        successMessage = 'Video X aggiunto con thumbnail automatica.';
+      }
+    } catch (_) {}
+  } else {
+    successMessage = 'Video X aggiunto con thumbnail manuale.';
+  }
 
   const filename = `tweet_${tweetId}`;
   db.videos[filename] = {
     title,
     description,
-    thumbnail: twitterThumbDataUrl || '',
+    thumbnail: resolvedThumb,
     duration: '',
     categoryId,
     playlistId: null,
@@ -139,7 +168,7 @@ async function addTwitterVideo() {
     if (!category.videoOrder.includes(filename)) category.videoOrder.unshift(filename);
   }
 
-  await persist('twitterFeedback', 'Video X aggiunto.');
+  await persist('twitterFeedback', successMessage);
   document.getElementById('twitterUrl').value = '';
   document.getElementById('twitterTitle').value = '';
   document.getElementById('twitterDesc').value = '';
@@ -377,6 +406,26 @@ function openEditModal(filename) {
 function closeEditModal() {
   document.getElementById('editModal').style.display = 'none';
   document.body.style.overflow = '';
+}
+
+async function retryTwitterThumb() {
+  const filename = document.getElementById('editFilename').value;
+  const video = db.videos[filename];
+  if (!video) return;
+  feedback('editTwitterThumbFeedback', 'Recupero thumbnail da X...', '');
+  try {
+    const result = await fetchTwitterThumbFromBackend(video.tweetUrl || video.videoUrl || '');
+    if (!result?.ok || !result.thumbnail) {
+      feedback('editTwitterThumbFeedback', result?.message || 'Nessuna thumbnail trovata.', 'error');
+      return;
+    }
+    db.videos[filename].thumbnail = result.thumbnail;
+    showEditTwitterThumb(result.thumbnail);
+    await persist('editTwitterThumbFeedback', 'Thumbnail recuperata.');
+    renderVideoList(getOrderedVideos());
+  } catch (error) {
+    feedback('editTwitterThumbFeedback', error.message, 'error');
+  }
 }
 
 function showEditTwitterThumb(url) {
