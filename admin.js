@@ -1,5 +1,6 @@
 let db = window.SpagocciStore.defaultDb();
 let twitterThumbDataUrl = null;
+let youtubeThumbDataUrl = null;
 let activeCatOrderId = null;
 let dragSrc = null;
 let catDragSrc = null;
@@ -73,6 +74,39 @@ function isTwitterVideo(video) {
     || !!window.SpagocciStore.parseTweetId(video.tweetUrl || video.videoUrl || '');
 }
 
+function isYouTubeVideo(video) {
+  if (!video) return false;
+  return video.type === 'youtube'
+    || !!video.youtubeId
+    || !!window.SpagocciStore.parseYouTubeId(video.youtubeUrl || video.videoUrl || '');
+}
+
+function getVideoSourceUrl(video) {
+  if (!video) return '';
+  if (isTwitterVideo(video)) return video.tweetUrl || video.videoUrl || '';
+  if (isYouTubeVideo(video)) return video.youtubeUrl || video.videoUrl || '';
+  return video.videoUrl || '';
+}
+
+function getVideoTypeLabel(video) {
+  if (isTwitterVideo(video)) return 'X / Twitter';
+  if (isYouTubeVideo(video)) return 'YouTube';
+  return video.type === 'short' ? 'Short' : 'Video';
+}
+
+function getManageThumbMarkup(video, thumb) {
+  if (thumb) {
+    return `<img src="${escapeHtml(thumb)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`;
+  }
+  if (isTwitterVideo(video)) {
+    return '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#000;color:#fff;font-size:18px;font-weight:700">X</div>';
+  }
+  if (isYouTubeVideo(video)) {
+    return '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#120000;color:#ff3b30;font-size:15px;font-weight:700">YT</div>';
+  }
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+}
+
 function feedback(id, msg, type = '') {
   const el = document.getElementById(id);
   if (!el) return;
@@ -89,7 +123,7 @@ function feedback(id, msg, type = '') {
 function populateSelects() {
   const catOpts = '<option value="">Nessuna categoria</option>' + db.categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   const plOpts = '<option value="">Nessuna playlist</option>' + db.playlists.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
-  ['editCategory', 'twitterCategory'].forEach((id) => {
+  ['editCategory', 'twitterCategory', 'youtubeCategory'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = catOpts;
   });
@@ -106,6 +140,17 @@ function previewTwitterThumb(input) {
     document.getElementById('twitterThumbPreview').style.display = 'block';
     document.getElementById('twitterThumbName').textContent = file.name;
   }).catch((error) => feedback('twitterFeedback', error.message, 'error'));
+}
+
+function previewYoutubeThumb(input) {
+  const file = input.files[0];
+  if (!file) return;
+  window.SpagocciStore.fileToDataUrl(file).then((dataUrl) => {
+    youtubeThumbDataUrl = dataUrl;
+    document.getElementById('youtubeThumbImg').src = dataUrl;
+    document.getElementById('youtubeThumbPreview').style.display = 'block';
+    document.getElementById('youtubeThumbName').textContent = file.name;
+  }).catch((error) => feedback('youtubeFeedback', error.message, 'error'));
 }
 
 async function fetchTwitterThumbFromBackend(tweetUrl) {
@@ -180,12 +225,57 @@ async function addTwitterVideo() {
   renderAll();
 }
 
+async function addYoutubeVideo() {
+  const youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+  const title = document.getElementById('youtubeTitle').value.trim();
+  const description = document.getElementById('youtubeDesc').value.trim();
+  const categoryId = document.getElementById('youtubeCategory').value || null;
+  const youtubeId = window.SpagocciStore.parseYouTubeId(youtubeUrl);
+  if (!youtubeUrl || !youtubeId) return feedback('youtubeFeedback', 'Inserisci un URL YouTube valido.', 'error');
+  if (!title) return feedback('youtubeFeedback', "Il titolo e' obbligatorio.", 'error');
+
+  const filename = `youtube_${youtubeId}`;
+  const resolvedThumb = youtubeThumbDataUrl || window.SpagocciStore.getYouTubeThumbnailUrl(youtubeId);
+  db.videos[filename] = {
+    title,
+    description,
+    thumbnail: resolvedThumb,
+    duration: '',
+    categoryId,
+    playlistId: null,
+    type: 'youtube',
+    youtubeUrl,
+    youtubeId,
+    addedAt: new Date().toISOString(),
+    views: 0,
+    videoUrl: ''
+  };
+  if (!db.videoOrder.includes(filename)) db.videoOrder.unshift(filename);
+  const category = db.categories.find((item) => item.id === categoryId);
+  if (category) {
+    if (!Array.isArray(category.videoOrder)) category.videoOrder = [];
+    if (!category.videoOrder.includes(filename)) category.videoOrder.unshift(filename);
+  }
+
+  await persist('youtubeFeedback', youtubeThumbDataUrl ? 'Video YouTube aggiunto con thumbnail manuale.' : 'Video YouTube aggiunto con thumbnail automatica.');
+  document.getElementById('youtubeUrl').value = '';
+  document.getElementById('youtubeTitle').value = '';
+  document.getElementById('youtubeDesc').value = '';
+  document.getElementById('youtubeCategory').value = '';
+  document.getElementById('youtubeThumbPreview').style.display = 'none';
+  document.getElementById('youtubeThumbName').textContent = 'Se non la scegli, uso la thumbnail YouTube';
+  document.getElementById('youtubeThumbFile').value = '';
+  youtubeThumbDataUrl = null;
+  renderAll();
+}
+
 async function deleteVideo(filename) {
   const video = db.videos[filename];
   if (!video) return;
   const isTwitter = isTwitterVideo(video);
-  const sourceLabel = isTwitter ? 'questo video X' : 'questo video';
-  if (!confirm(`Rimuovere ${sourceLabel} dal sito?${isTwitter ? '' : ' Il file sorgente non verrà cancellato dal repository.'}`)) return;
+  const isYouTube = isYouTubeVideo(video);
+  const sourceLabel = isTwitter ? 'questo video X' : isYouTube ? 'questo video YouTube' : 'questo video';
+  if (!confirm(`Rimuovere ${sourceLabel} dal sito?`)) return;
   delete db.videos[filename];
   db.videoOrder = db.videoOrder.filter((item) => item !== filename);
   db.categories.forEach((category) => {
@@ -204,9 +294,8 @@ function renderVideoList(videos) {
   list.innerHTML = videos.map((video) => {
     const category = db.categories.find((item) => item.id === video.categoryId);
     const playlist = db.playlists.find((item) => item.id === video.playlistId);
-    const isTwitter = isTwitterVideo(video);
     const thumb = resolveAsset(video.thumbnail);
-    return `<div class="manage-item" id="vi-${CSS.escape(video.filename)}"><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden;position:relative">${thumb ? `<img src="${escapeHtml(thumb)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : isTwitter ? '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#000;color:#fff;font-size:18px;font-weight:700">X</div>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${isTwitter ? 'X / Twitter' : video.type === 'short' ? 'Short' : 'Video'}${category ? ` - ${escapeHtml(category.name)}` : ''}${playlist ? ` - ${escapeHtml(playlist.name)}` : ''}${!isTwitter ? ` - ${escapeHtml(video.videoUrl || 'URL mancante')}` : ''}</div></div><div class="manage-actions"><button class="btn-edit" onclick="openEditModal('${escapeHtml(video.filename)}')">Modifica</button><button class="btn-delete" onclick="deleteVideo('${escapeHtml(video.filename)}')">Rimuovi</button></div></div>`;
+    return `<div class="manage-item" id="vi-${CSS.escape(video.filename)}"><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden;position:relative">${getManageThumbMarkup(video, thumb)}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${getVideoTypeLabel(video)}${category ? ` - ${escapeHtml(category.name)}` : ''}${playlist ? ` - ${escapeHtml(playlist.name)}` : ''}${getVideoSourceUrl(video) ? ` - ${escapeHtml(getVideoSourceUrl(video))}` : ''}</div></div><div class="manage-actions"><button class="btn-edit" onclick="openEditModal('${escapeHtml(video.filename)}')">Modifica</button><button class="btn-delete" onclick="deleteVideo('${escapeHtml(video.filename)}')">Rimuovi</button></div></div>`;
   }).join('');
 }
 
@@ -214,7 +303,7 @@ function filterVideos(query) {
   const videos = getOrderedVideos();
   if (!query.trim()) return renderVideoList(videos);
   const q = query.toLowerCase();
-  renderVideoList(videos.filter((video) => video.title.toLowerCase().includes(q) || (video.description || '').toLowerCase().includes(q) || video.filename.toLowerCase().includes(q) || (video.videoUrl || '').toLowerCase().includes(q)));
+  renderVideoList(videos.filter((video) => video.title.toLowerCase().includes(q) || (video.description || '').toLowerCase().includes(q) || video.filename.toLowerCase().includes(q) || getVideoSourceUrl(video).toLowerCase().includes(q)));
 }
 
 async function createCategory() {
@@ -291,7 +380,7 @@ function renderOrderList() {
     list.innerHTML = '<div class="loading-state"><p>Nessun video trovato.</p></div>';
     return;
   }
-  list.innerHTML = videos.map((video) => `<div class="manage-item drag-item" draggable="true" data-id="${escapeHtml(video.filename)}" data-type="order" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropOn(event,'order')"><div class="drag-handle">⋮⋮</div><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden">${video.thumbnail ? `<img src="${escapeHtml(resolveAsset(video.thumbnail))}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${video.type === 'short' ? 'Short' : video.type === 'twitter' ? 'X' : 'Video'}</div></div></div>`).join('');
+  list.innerHTML = videos.map((video) => `<div class="manage-item drag-item" draggable="true" data-id="${escapeHtml(video.filename)}" data-type="order" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropOn(event,'order')"><div class="drag-handle">⋮⋮</div><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden">${getManageThumbMarkup(video, resolveAsset(video.thumbnail || ''))}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${isTwitterVideo(video) ? 'X' : isYouTubeVideo(video) ? 'YouTube' : video.type === 'short' ? 'Short' : 'Video'}</div></div></div>`).join('');
 }
 
 async function saveOrder() {
@@ -384,20 +473,26 @@ function openEditModal(filename) {
   const video = db.videos[filename];
   if (!video) return;
   const isTwitter = isTwitterVideo(video);
-  if (!isTwitter) {
-    alert('Sono supportati solo video X / Twitter.');
+  const isYouTube = isYouTubeVideo(video);
+  if (!isTwitter && !isYouTube) {
+    alert('Sono supportati solo video X / Twitter e YouTube.');
     return;
   }
   populateSelects();
   document.getElementById('editFilename').value = filename;
-  document.getElementById('editVideoType').value = 'twitter';
+  document.getElementById('editVideoType').value = isTwitter ? 'twitter' : 'youtube';
   document.getElementById('editTitle').value = video.title || '';
   document.getElementById('editDesc').value = video.description || '';
   document.getElementById('editCategory').value = video.categoryId || '';
   document.getElementById('editPlaylist').value = video.playlistId || '';
-  document.getElementById('editTwitterSection').style.display = 'block';
-  document.getElementById('editTweetUrl').value = video.tweetUrl || video.videoUrl || '';
-  showEditTwitterThumb(video.thumbnail || '');
+  document.getElementById('editTwitterSection').style.display = isTwitter ? 'block' : 'none';
+  document.getElementById('editYoutubeSection').style.display = isYouTube ? 'block' : 'none';
+  document.getElementById('editTweetUrl').value = isTwitter ? (video.tweetUrl || video.videoUrl || '') : '';
+  document.getElementById('editYoutubeUrl').value = isYouTube ? (video.youtubeUrl || video.videoUrl || '') : '';
+  showEditTwitterThumb(isTwitter ? (video.thumbnail || '') : '');
+  showEditYoutubeThumb(isYouTube ? (video.thumbnail || '') : '');
+  feedback('editTwitterThumbFeedback', '');
+  feedback('editYoutubeThumbFeedback', '');
   document.getElementById('editFeedback').textContent = '';
   document.getElementById('editModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -440,6 +535,18 @@ function showEditTwitterThumb(url) {
   }
 }
 
+function showEditYoutubeThumb(url) {
+  const preview = document.getElementById('editYoutubeThumbPreview');
+  const img = document.getElementById('editYoutubeThumbImg');
+  if (!preview || !img) return;
+  if (url) {
+    img.src = resolveAsset(url);
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
 async function uploadEditTwitterThumb(input) {
   const file = input.files[0];
   if (!file) return;
@@ -456,21 +563,69 @@ async function uploadEditTwitterThumb(input) {
   }
 }
 
+async function uploadEditYoutubeThumb(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const filename = document.getElementById('editFilename').value;
+  try {
+    db.videos[filename].thumbnail = await window.SpagocciStore.fileToDataUrl(file);
+    showEditYoutubeThumb(db.videos[filename].thumbnail);
+    await persist('editYoutubeThumbFeedback', 'Thumbnail salvata.');
+    renderVideoList(getOrderedVideos());
+  } catch (error) {
+    feedback('editYoutubeThumbFeedback', error.message, 'error');
+  } finally {
+    input.value = '';
+  }
+}
+
+async function resetYoutubeThumb() {
+  const filename = document.getElementById('editFilename').value;
+  const video = db.videos[filename];
+  if (!video) return;
+  const youtubeId = video.youtubeId || window.SpagocciStore.parseYouTubeId(video.youtubeUrl || video.videoUrl || '');
+  if (!youtubeId) return feedback('editYoutubeThumbFeedback', 'URL YouTube non valido.', 'error');
+  db.videos[filename].thumbnail = window.SpagocciStore.getYouTubeThumbnailUrl(youtubeId);
+  showEditYoutubeThumb(db.videos[filename].thumbnail);
+  await persist('editYoutubeThumbFeedback', 'Thumbnail YouTube ripristinata.');
+  renderVideoList(getOrderedVideos());
+}
+
 async function saveVideoEdit() {
   const filename = document.getElementById('editFilename').value;
+  const videoType = document.getElementById('editVideoType').value;
   const update = {
     title: document.getElementById('editTitle').value.trim(),
     description: document.getElementById('editDesc').value.trim(),
     categoryId: document.getElementById('editCategory').value || null,
-    playlistId: document.getElementById('editPlaylist').value || null,
-    type: 'twitter',
-    tweetUrl: document.getElementById('editTweetUrl').value.trim(),
-    videoUrl: '',
-    duration: ''
+    playlistId: document.getElementById('editPlaylist').value || null
   };
   if (!update.title) return feedback('editFeedback', "Il titolo e' obbligatorio.", 'error');
-  update.tweetId = window.SpagocciStore.parseTweetId(update.tweetUrl);
-  if (!update.tweetId) return feedback('editFeedback', 'Inserisci un URL tweet valido.', 'error');
+  if (videoType === 'twitter') {
+    update.type = 'twitter';
+    update.tweetUrl = document.getElementById('editTweetUrl').value.trim();
+    update.tweetId = window.SpagocciStore.parseTweetId(update.tweetUrl);
+    update.youtubeUrl = '';
+    update.youtubeId = '';
+    update.videoUrl = '';
+    update.duration = '';
+    if (!update.tweetId) return feedback('editFeedback', 'Inserisci un URL tweet valido.', 'error');
+  } else if (videoType === 'youtube') {
+    update.type = 'youtube';
+    update.youtubeUrl = document.getElementById('editYoutubeUrl').value.trim();
+    update.youtubeId = window.SpagocciStore.parseYouTubeId(update.youtubeUrl);
+    update.tweetUrl = '';
+    update.tweetId = '';
+    update.videoUrl = '';
+    update.duration = '';
+    if (!update.youtubeId) return feedback('editFeedback', 'Inserisci un URL YouTube valido.', 'error');
+    const currentDefaultThumb = window.SpagocciStore.getYouTubeThumbnailUrl(db.videos[filename].youtubeId || '');
+    if (!db.videos[filename].thumbnail || db.videos[filename].thumbnail === currentDefaultThumb) {
+      update.thumbnail = window.SpagocciStore.getYouTubeThumbnailUrl(update.youtubeId);
+    }
+  } else {
+    return feedback('editFeedback', 'Tipo video non supportato.', 'error');
+  }
 
   const oldCategoryId = db.videos[filename].categoryId;
   db.videos[filename] = { ...db.videos[filename], ...update };
@@ -521,7 +676,7 @@ function renderCatOrderList(categoryId) {
 function catOrderCard(filename, index, categoryId) {
   const video = db.videos[filename];
   if (!video) return '';
-  return `<div class="manage-item drag-item cat-order-drag-item" draggable="true" data-id="${escapeHtml(filename)}" data-type="catorder" ondragstart="catDragStart(event)" ondragover="catDragOver(event)" ondrop="catDropOn(event, '${escapeHtml(categoryId)}')" ondragleave="catDragLeave(event)" ondragend="catDragEnd(event)"><div class="drag-handle">⋮⋮</div><div class="cat-order-index">${index + 1}</div><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden">${video.thumbnail ? `<img src="${escapeHtml(resolveAsset(video.thumbnail))}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${video.type === 'twitter' ? 'X' : 'Video'}</div></div><div class="manage-actions"><button class="btn-secondary" onclick="catOrderMove('${escapeHtml(filename)}', '${escapeHtml(categoryId)}', -1)">↑</button><button class="btn-secondary" onclick="catOrderMove('${escapeHtml(filename)}', '${escapeHtml(categoryId)}', 1)">↓</button></div></div>`;
+  return `<div class="manage-item drag-item cat-order-drag-item" draggable="true" data-id="${escapeHtml(filename)}" data-type="catorder" ondragstart="catDragStart(event)" ondragover="catDragOver(event)" ondrop="catDropOn(event, '${escapeHtml(categoryId)}')" ondragleave="catDragLeave(event)" ondragend="catDragEnd(event)"><div class="drag-handle">⋮⋮</div><div class="cat-order-index">${index + 1}</div><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden">${getManageThumbMarkup(video, resolveAsset(video.thumbnail || ''))}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${isTwitterVideo(video) ? 'X' : isYouTubeVideo(video) ? 'YouTube' : 'Video'}</div></div><div class="manage-actions"><button class="btn-secondary" onclick="catOrderMove('${escapeHtml(filename)}', '${escapeHtml(categoryId)}', -1)">↑</button><button class="btn-secondary" onclick="catOrderMove('${escapeHtml(filename)}', '${escapeHtml(categoryId)}', 1)">↓</button></div></div>`;
 }
 
 function catOrderMove(filename, categoryId, direction) {

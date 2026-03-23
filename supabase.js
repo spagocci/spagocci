@@ -23,6 +23,36 @@
     return /(^https?:\/\/)?(www\.)?(x|twitter)\.com\//i.test(String(url || '').trim());
   }
 
+  function parseYouTubeId(url) {
+    const value = String(url || '').trim();
+    if (!value) return '';
+    const directMatch = value.match(/^[a-zA-Z0-9_-]{11}$/);
+    if (directMatch) return directMatch[0];
+    try {
+      const normalized = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+      const parsed = new URL(normalized);
+      const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+      if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+        const id = parsed.searchParams.get('v');
+        return /^[a-zA-Z0-9_-]{11}$/.test(id || '') ? id : '';
+      }
+      if (host === 'youtu.be') {
+        const id = parsed.pathname.split('/').filter(Boolean)[0] || '';
+        return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : '';
+      }
+    } catch (_) {}
+    const fallback = value.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[?&/]|$)/);
+    return fallback ? fallback[1] : '';
+  }
+
+  function isYouTubeUrl(url) {
+    return !!parseYouTubeId(url);
+  }
+
+  function getYouTubeThumbnailUrl(youtubeId) {
+    return youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : '';
+  }
+
   function normalizeDb(raw) {
     const db = { ...defaultDb(), ...(raw || {}) };
     if (!db.videos || typeof db.videos !== 'object') db.videos = {};
@@ -47,6 +77,8 @@
 
       const tweetUrl = normalizedVideo.tweetUrl || (isTwitterUrl(normalizedVideo.videoUrl) ? normalizedVideo.videoUrl : '');
       const tweetId = normalizedVideo.tweetId || parseTweetId(tweetUrl);
+      const youtubeUrl = normalizedVideo.youtubeUrl || (!tweetId && isYouTubeUrl(normalizedVideo.videoUrl) ? normalizedVideo.videoUrl : '');
+      const youtubeId = normalizedVideo.youtubeId || parseYouTubeId(youtubeUrl);
 
       if (tweetId) {
         normalizedVideo.type = 'twitter';
@@ -54,6 +86,16 @@
         normalizedVideo.tweetId = tweetId;
         normalizedVideo.videoUrl = '';
         normalizedVideo.duration = normalizedVideo.duration || '';
+        delete normalizedVideo.youtubeUrl;
+        delete normalizedVideo.youtubeId;
+      } else if (youtubeId) {
+        normalizedVideo.type = 'youtube';
+        normalizedVideo.youtubeUrl = youtubeUrl || `https://www.youtube.com/watch?v=${youtubeId}`;
+        normalizedVideo.youtubeId = youtubeId;
+        normalizedVideo.videoUrl = '';
+        normalizedVideo.thumbnail = normalizedVideo.thumbnail || getYouTubeThumbnailUrl(youtubeId);
+        delete normalizedVideo.tweetUrl;
+        delete normalizedVideo.tweetId;
       }
 
       db.videos[filename] = normalizedVideo;
@@ -172,6 +214,9 @@
     resolveAssetUrl,
     isTwitterUrl,
     parseTweetId,
+    isYouTubeUrl,
+    parseYouTubeId,
+    getYouTubeThumbnailUrl,
     fileToDataUrl
   };
 })();

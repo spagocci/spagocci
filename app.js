@@ -20,6 +20,22 @@ function isTwitterVideo(video) {
     || !!window.SpagocciStore.parseTweetId(video.tweetUrl || video.videoUrl || '');
 }
 
+function isYouTubeVideo(video) {
+  if (!video) return false;
+  return video.type === 'youtube'
+    || !!video.youtubeId
+    || !!window.SpagocciStore.parseYouTubeId(video.youtubeUrl || video.videoUrl || '');
+}
+
+function getVideoThumb(video) {
+  if (video?.thumbnail) return resolveAsset(video.thumbnail);
+  if (isYouTubeVideo(video)) {
+    const youtubeId = video.youtubeId || window.SpagocciStore.parseYouTubeId(video.youtubeUrl || video.videoUrl || '');
+    return resolveAsset(window.SpagocciStore.getYouTubeThumbnailUrl(youtubeId));
+  }
+  return '';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   await checkAdminSession();
@@ -221,14 +237,15 @@ function scrollRow(rowId, direction) {
 }
 
 function videoCard(video) {
-  const thumb = resolveAsset(video.thumbnail || '');
+  const thumb = getVideoThumb(video);
   const isTwitter = isTwitterVideo(video);
-  return `<div class="video-card" onclick="openVideo('${escapeHtml(video.filename)}')"><div class="video-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(video.title)}" loading="lazy" onerror="this.style.display='none'">` : isTwitter ? '<div class="video-thumb-placeholder twitter-placeholder">X</div>' : '<div class="video-thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'}<div class="play-overlay"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>${video.duration ? `<span class="duration-badge">${escapeHtml(video.duration)}</span>` : ''}${isTwitter ? '<span class="x-badge">X</span>' : ''}</div><div class="video-info"><div class="video-title">${escapeHtml(video.title)}</div><div class="video-meta"><span>${video.views || 0} visualizzazioni</span><span>·</span><span>${getTimeAgo(video.addedAt)}</span></div></div></div>`;
+  const isYouTube = isYouTubeVideo(video);
+  return `<div class="video-card" onclick="openVideo('${escapeHtml(video.filename)}')"><div class="video-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(video.title)}" loading="lazy" onerror="this.style.display='none'">` : isTwitter ? '<div class="video-thumb-placeholder twitter-placeholder">X</div>' : isYouTube ? '<div class="video-thumb-placeholder youtube-placeholder">YT</div>' : '<div class="video-thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'}<div class="play-overlay"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>${video.duration ? `<span class="duration-badge">${escapeHtml(video.duration)}</span>` : ''}${isTwitter ? '<span class="x-badge">X</span>' : ''}${isYouTube ? '<span class="youtube-badge">YouTube</span>' : ''}</div><div class="video-info"><div class="video-title">${escapeHtml(video.title)}</div><div class="video-meta"><span>${video.views || 0} visualizzazioni</span><span>·</span><span>${getTimeAgo(video.addedAt)}</span></div></div></div>`;
 }
 
 function playlistCard(playlist) {
   const videos = getOrderedVideos().filter((video) => video.playlistId === playlist.id && video.type !== 'short');
-  const thumb = resolveAsset(videos[0]?.thumbnail || '');
+  const thumb = getVideoThumb(videos[0]);
   return `<div class="playlist-card" onclick="filterBySection('pl_${playlist.id}')"><div class="playlist-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(playlist.name)}">` : ''}<div class="playlist-count"><span style="font-size:18px;font-weight:700">${videos.length}</span><span style="font-size:10px">video</span></div></div><div class="playlist-info"><div class="playlist-name">${escapeHtml(playlist.name)}</div><div class="playlist-meta">${escapeHtml(playlist.description || '')}</div></div></div>`;
 }
 
@@ -256,6 +273,11 @@ function openVideo(filename, pushState = true) {
     } else {
       renderTweetEmbed(tweetId);
     }
+  } else if (isYouTubeVideo(video)) {
+    const youtubeId = video.youtubeId || window.SpagocciStore.parseYouTubeId(video.youtubeUrl || video.videoUrl || '');
+    wrapper.innerHTML = youtubeId
+      ? `<iframe src="https://www.youtube-nocookie.com/embed/${escapeHtml(youtubeId)}?autoplay=1&rel=0" title="${escapeHtml(video.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;background:#000;border:0;border-radius:12px 12px 0 0"></iframe>`
+      : `<div style="position:absolute;inset:0;display:grid;place-items:center;background:#000;color:#fff;padding:24px;text-align:center">Manca un URL YouTube valido. Impostalo da admin.</div>`;
   } else {
     const videoUrl = resolveAsset(video.videoUrl || '');
     wrapper.innerHTML = videoUrl

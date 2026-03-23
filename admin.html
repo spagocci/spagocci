@@ -32,7 +32,7 @@
         <h2 class="admin-title">Video e contenuti</h2>
         <div class="upload-form" style="max-width:860px;margin-bottom:20px">
           <div style="font-size:13px;color:var(--text3)">
-            Questa versione pubblica gestisce i contenuti video tramite embed X / Twitter.
+            Questa versione pubblica gestisce i contenuti video tramite embed X / Twitter e YouTube.
           </div>
         </div>
 
@@ -80,6 +80,52 @@
             <button class="btn-primary" style="width:auto" onclick="addTwitterVideo()">Aggiungi video X</button>
           </div>
           <div class="upload-feedback" id="twitterFeedback"></div>
+        </div>
+
+        <div class="upload-form" style="max-width:800px;margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <span style="font-size:18px;font-weight:700;color:#ff0000">YT</span>
+            <h3 style="font-size:14px;font-weight:600">Aggiungi video da YouTube</h3>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="grid-column:1/-1">
+              <label>URL YouTube</label>
+              <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=...">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Titolo</label>
+              <input type="text" id="youtubeTitle" placeholder="Titolo del video">
+            </div>
+            <div class="form-group">
+              <label>Categoria</label>
+              <select id="youtubeCategory">
+                <option value="">Nessuna categoria</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Descrizione</label>
+            <textarea id="youtubeDesc" rows="2" placeholder="Descrizione..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Thumbnail manuale opzionale</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                Scegli immagine
+                <input type="file" id="youtubeThumbFile" accept="image/*" style="display:none" onchange="previewYoutubeThumb(this)">
+              </label>
+              <span id="youtubeThumbName" style="font-size:12px;color:var(--text3)">Se non la scegli, uso la thumbnail YouTube</span>
+            </div>
+            <div id="youtubeThumbPreview" style="display:none;margin-top:8px">
+              <img id="youtubeThumbImg" style="max-width:180px;border-radius:6px;border:1px solid var(--border)">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" style="width:auto" onclick="addYoutubeVideo()">Aggiungi video YouTube</button>
+          </div>
+          <div class="upload-feedback" id="youtubeFeedback"></div>
         </div>
 
         <div class="manage-search">
@@ -203,6 +249,27 @@
           </label>
         </div>
         <div class="upload-feedback" id="editTwitterThumbFeedback" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div id="editYoutubeSection" style="display:none">
+      <div class="form-group">
+        <label>URL YouTube</label>
+        <input type="url" id="editYoutubeUrl" placeholder="https://www.youtube.com/watch?v=...">
+      </div>
+      <div class="form-group">
+        <label>Thumbnail</label>
+        <div id="editYoutubeThumbPreview" style="margin-bottom:8px;display:none">
+          <img id="editYoutubeThumbImg" style="max-width:200px;border-radius:6px;border:1px solid var(--border)">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn-secondary" type="button" onclick="resetYoutubeThumb()">Usa thumbnail YouTube</button>
+          <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            Carica manuale
+            <input type="file" id="editYoutubeThumbFile" accept="image/*" style="display:none" onchange="uploadEditYoutubeThumb(this)">
+          </label>
+        </div>
+        <div class="upload-feedback" id="editYoutubeThumbFeedback" style="margin-top:8px"></div>
       </div>
     </div>
 
