@@ -1,6 +1,5 @@
 let db = window.SpagocciStore.defaultDb();
 let twitterThumbDataUrl = null;
-let thumbVideoEl = null;
 let activeCatOrderId = null;
 let dragSrc = null;
 let catDragSrc = null;
@@ -356,40 +355,26 @@ function openEditModal(filename) {
   const video = db.videos[filename];
   if (!video) return;
   const isTwitter = isTwitterVideo(video);
+  if (!isTwitter) {
+    alert('Sono supportati solo video X / Twitter.');
+    return;
+  }
   populateSelects();
   document.getElementById('editFilename').value = filename;
-  document.getElementById('editVideoType').value = video.type || 'video';
+  document.getElementById('editVideoType').value = 'twitter';
   document.getElementById('editTitle').value = video.title || '';
   document.getElementById('editDesc').value = video.description || '';
   document.getElementById('editCategory').value = video.categoryId || '';
   document.getElementById('editPlaylist').value = video.playlistId || '';
-  document.getElementById('editLocalSection').style.display = isTwitter ? 'none' : 'block';
-  document.getElementById('editTwitterSection').style.display = isTwitter ? 'block' : 'none';
-
-  if (isTwitter) {
-    document.getElementById('editTweetUrl').value = video.tweetUrl || video.videoUrl || '';
-    showEditTwitterThumb(video.thumbnail || '');
-  } else {
-    document.getElementById('editDuration').value = video.duration || '';
-    document.getElementById('editType').value = video.type || 'video';
-    document.getElementById('editVideoUrl').value = video.videoUrl || '';
-    thumbVideoEl = document.getElementById('thumbVideo');
-    thumbVideoEl.crossOrigin = 'anonymous';
-    thumbVideoEl.src = resolveAsset(video.videoUrl || '');
-    document.getElementById('thumbCapturedPreview').style.display = video.thumbnail ? 'block' : 'none';
-    if (video.thumbnail) document.getElementById('thumbCapturedImg').src = resolveAsset(video.thumbnail);
-  }
-
+  document.getElementById('editTwitterSection').style.display = 'block';
+  document.getElementById('editTweetUrl').value = video.tweetUrl || video.videoUrl || '';
+  showEditTwitterThumb(video.thumbnail || '');
   document.getElementById('editFeedback').textContent = '';
   document.getElementById('editModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
 
 function closeEditModal() {
-  if (thumbVideoEl) {
-    thumbVideoEl.pause();
-    thumbVideoEl.src = '';
-  }
   document.getElementById('editModal').style.display = 'none';
   document.body.style.overflow = '';
 }
@@ -422,94 +407,21 @@ async function uploadEditTwitterThumb(input) {
   }
 }
 
-async function uploadManualThumb(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const filename = document.getElementById('editFilename').value;
-  try {
-    db.videos[filename].thumbnail = await window.SpagocciStore.fileToDataUrl(file);
-    document.getElementById('thumbCapturedImg').src = db.videos[filename].thumbnail;
-    document.getElementById('thumbCapturedPreview').style.display = 'block';
-    await persist('editFeedback', 'Thumbnail caricata.');
-    renderVideoList(getOrderedVideos());
-  } catch (error) {
-    feedback('editFeedback', error.message, 'error');
-  } finally {
-    input.value = '';
-  }
-}
-
-function toggleThumbPlay() {
-  if (!thumbVideoEl) return;
-  const btn = document.getElementById('thumbPlayBtn');
-  if (thumbVideoEl.paused) {
-    thumbVideoEl.play();
-    btn.textContent = 'Pausa';
-  } else {
-    thumbVideoEl.pause();
-    btn.textContent = 'Play';
-  }
-}
-
-function scrubVideo(value) {
-  if (!thumbVideoEl || !thumbVideoEl.duration) return;
-  thumbVideoEl.currentTime = (value / 100) * thumbVideoEl.duration;
-  updateTimeDisplay();
-}
-
-function updateTimeDisplay() {
-  if (!thumbVideoEl || !thumbVideoEl.duration) return;
-  document.getElementById('thumbTimeDisplay').textContent = `${formatTime(thumbVideoEl.currentTime)} / ${formatTime(thumbVideoEl.duration)}`;
-}
-
-function formatTime(secs) {
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-async function captureThumbFrame() {
-  const filename = document.getElementById('editFilename').value;
-  if (!thumbVideoEl || !filename) return;
-  try {
-    const canvas = document.getElementById('thumbCanvas');
-    canvas.width = thumbVideoEl.videoWidth || 1280;
-    canvas.height = thumbVideoEl.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(thumbVideoEl, 0, 0, canvas.width, canvas.height);
-    db.videos[filename].thumbnail = canvas.toDataURL('image/jpeg', 0.88);
-    document.getElementById('thumbCapturedImg').src = db.videos[filename].thumbnail;
-    document.getElementById('thumbCapturedPreview').style.display = 'block';
-    await persist('editFeedback', 'Thumbnail salvata.');
-    renderVideoList(getOrderedVideos());
-  } catch (_) {
-    feedback('editFeedback', 'Cattura non riuscita. Se il video è remoto, carica un’immagine manualmente.', 'error');
-  }
-}
-
 async function saveVideoEdit() {
   const filename = document.getElementById('editFilename').value;
-  const originalType = document.getElementById('editVideoType').value;
-  const isTwitter = originalType === 'twitter' || isTwitterVideo(db.videos[filename]);
   const update = {
     title: document.getElementById('editTitle').value.trim(),
     description: document.getElementById('editDesc').value.trim(),
     categoryId: document.getElementById('editCategory').value || null,
-    playlistId: document.getElementById('editPlaylist').value || null
+    playlistId: document.getElementById('editPlaylist').value || null,
+    type: 'twitter',
+    tweetUrl: document.getElementById('editTweetUrl').value.trim(),
+    videoUrl: '',
+    duration: ''
   };
-  if (!update.title) return feedback('editFeedback', 'Il titolo è obbligatorio.', 'error');
-
-  if (isTwitter) {
-    update.type = 'twitter';
-    update.tweetUrl = document.getElementById('editTweetUrl').value.trim();
-    update.tweetId = window.SpagocciStore.parseTweetId(update.tweetUrl);
-    update.videoUrl = '';
-    if (!update.tweetId) return feedback('editFeedback', 'Inserisci un URL tweet valido.', 'error');
-  } else {
-    update.type = document.getElementById('editType').value;
-    update.duration = document.getElementById('editDuration').value.trim();
-    update.videoUrl = document.getElementById('editVideoUrl').value.trim();
-  }
+  if (!update.title) return feedback('editFeedback', "Il titolo e' obbligatorio.", 'error');
+  update.tweetId = window.SpagocciStore.parseTweetId(update.tweetUrl);
+  if (!update.tweetId) return feedback('editFeedback', 'Inserisci un URL tweet valido.', 'error');
 
   const oldCategoryId = db.videos[filename].categoryId;
   db.videos[filename] = { ...db.videos[filename], ...update };

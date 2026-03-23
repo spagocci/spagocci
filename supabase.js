@@ -14,11 +14,6 @@
     };
   }
 
-  function guessVideoUrl(filename) {
-    if (!filename) return '';
-    return `./videos/${encodeURIComponent(filename).replace(/%2F/g, '/')}`;
-  }
-
   function parseTweetId(tweetUrl) {
     const match = String(tweetUrl || '').match(/status\/(\d+)/i);
     return match ? match[1] : '';
@@ -46,7 +41,7 @@
         type: 'video',
         addedAt: new Date().toISOString(),
         views: 0,
-        videoUrl: guessVideoUrl(filename),
+        videoUrl: '',
         ...video
       };
 
@@ -168,7 +163,6 @@
   window.SpagocciStore = {
     supabase,
     defaultDb,
-    guessVideoUrl,
     normalizeDb,
     loadContent,
     saveContent,

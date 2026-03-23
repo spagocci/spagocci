@@ -11,10 +11,7 @@ Il frontend pubblico e l'admin ora leggono/scrivono uno stato JSON in Supabase, 
 
 - `public/index.html` usa Supabase per leggere il contenuto del canale
 - `admin.html` usa una password privata verificata lato server da Cloudflare Pages Functions
-- i video normali non vengono più letti da `C:\Cloud\Video`
-- ogni video deve avere un `videoUrl` pubblico, per esempio:
-  - `./videos/nomefile.mp4`
-  - oppure un URL CDN / storage esterno
+- il sito pubblico ora usa contenuti video da X / Twitter salvati nello stato JSON
 - il contenuto completo del canale viene salvato nella tabella `public.site_content`
 
 ## 1. Crea la tabella su Supabase
@@ -44,28 +41,18 @@ Nel progetto Cloudflare Pages imposta questi secret:
 
 Nel record `site_content` con `slug = 'main'`, il campo `data` deve contenere il contenuto del canale.
 
-Per ogni video normale aggiungi o correggi `videoUrl`.
+Per ogni video da X / Twitter salva `tweetUrl` e `tweetId`.
 
 Esempio:
 
 ```json
 {
-  "title": "bumblebee",
-  "type": "video",
-  "thumbnail": "/thumbs/bumblebee.jpg",
-  "videoUrl": "./videos/bumblebee.mp4"
+  "title": "FeeL The Fire",
+  "type": "twitter",
+  "tweetUrl": "https://x.com/DavideSpagocci/status/2035513105212400019",
+  "tweetId": "2035513105212400019"
 }
 ```
-
-## 4. Dove mettere i file video
-
-Se vuoi servire i video dal sito statico:
-
-1. crea una cartella `public/videos/`
-2. inserisci i file `.mp4`
-3. usa URL come `./videos/nomefile.mp4`
-
-Le thumbnail già presenti in `public/thumbs/` continuano a funzionare.
 
 ## 5. Configurazione Supabase nel frontend
 
@@ -91,9 +78,7 @@ Nota importante: la chiave che hai incollato non è una `service_role`, ma una c
 ## Limiti attuali
 
 - il conteggio view non viene incrementato lato server
-- i video locali del vecchio server non sono più leggibili automaticamente dal filesystem Windows
-- per i video X/Twitter la thumbnail è manuale
-- la cattura thumbnail da frame funziona solo se il browser può leggere il video senza blocchi CORS
+- per i video X/Twitter la thumbnail manuale
 
 ## Pulizia
 
