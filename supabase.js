@@ -6,7 +6,6 @@
     return {
       videos: {},
       categories: [],
-      playlists: [],
       videoOrder: [],
       channelAvatar: '',
       channelName: config.channelName,
@@ -57,7 +56,6 @@
     const db = { ...defaultDb(), ...(raw || {}) };
     if (!db.videos || typeof db.videos !== 'object') db.videos = {};
     if (!Array.isArray(db.categories)) db.categories = [];
-    if (!Array.isArray(db.playlists)) db.playlists = [];
     if (!Array.isArray(db.videoOrder)) db.videoOrder = [];
 
     Object.entries(db.videos).forEach(([filename, video]) => {
@@ -67,7 +65,6 @@
         thumbnail: '',
         duration: '',
         categoryId: null,
-        playlistId: null,
         type: 'video',
         addedAt: new Date().toISOString(),
         views: 0,
@@ -97,6 +94,7 @@
         delete normalizedVideo.tweetUrl;
         delete normalizedVideo.tweetId;
       }
+      delete normalizedVideo.playlistId;
 
       db.videos[filename] = normalizedVideo;
     });
@@ -107,14 +105,6 @@
       order: Number.isFinite(category.order) ? category.order : index,
       videoOrder: Array.isArray(category.videoOrder) ? category.videoOrder : []
     })).sort((a, b) => a.order - b.order);
-
-    db.playlists = db.playlists.map((playlist, index) => ({
-      id: playlist.id || crypto.randomUUID(),
-      name: playlist.name || `Playlist ${index + 1}`,
-      description: playlist.description || '',
-      order: Number.isFinite(playlist.order) ? playlist.order : index
-    })).sort((a, b) => a.order - b.order);
-
     db.videoOrder = db.videoOrder.filter((filename) => db.videos[filename]);
     Object.keys(db.videos).forEach((filename) => {
       if (!db.videoOrder.includes(filename)) db.videoOrder.push(filename);
@@ -128,6 +118,8 @@
         }
       });
     });
+
+    delete db.playlists;
 
     return db;
   }

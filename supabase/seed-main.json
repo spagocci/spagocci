@@ -9,7 +9,6 @@
       "thumbnail": "",
       "duration": "",
       "categoryId": "mn0epixu009w",
-      "playlistId": null,
       "type": "twitter",
       "tweetUrl": "https://x.com/DavideSpagocci/status/2035513105212400019",
       "tweetId": "2035513105212400019",
@@ -50,14 +49,6 @@
       "name": "Usato",
       "order": 4,
       "videoOrder": []
-    }
-  ],
-  "playlists": [
-    {
-      "id": "mn0y575rw6ea",
-      "name": "Musica",
-      "description": "",
-      "order": 0
     }
   ],
   "videoOrder": [

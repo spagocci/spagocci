@@ -142,7 +142,6 @@ function renderTopTabs() {
   db.categories.forEach((category) => {
     tabs += `<button class="top-tab ${currentSection === `cat_${category.id}` ? 'active' : ''}" data-section="cat_${category.id}" onclick="switchTopTab('cat_${category.id}', this)">${escapeHtml(category.name)}</button>`;
   });
-  tabs += `<button class="top-tab ${currentSection === 'playlists' ? 'active' : ''}" data-section="playlists" onclick="switchTopTab('playlists', this)">Playlist</button>`;
   bar.innerHTML = tabs;
 }
 
@@ -219,24 +218,12 @@ function renderSection(section) {
     return;
   }
 
-  if (section === 'playlists') {
-    content.innerHTML = `<div class="section-header"><h2 class="section-title">Playlist</h2></div><div class="playlist-grid">${db.playlists.map(playlistCard).join('') || emptyState('Nessuna playlist.')}</div>`;
-    return;
-  }
-
   if (section.startsWith('cat_')) {
     const categoryId = section.replace('cat_', '');
     const category = db.categories.find((item) => item.id === categoryId);
     const catVideos = getCategoryVideos(categoryId, videos);
     content.innerHTML = `<div class="section-header"><h2 class="section-title">${escapeHtml(category?.name || '')}</h2></div><div class="video-grid">${catVideos.map(videoCard).join('') || emptyState('Nessun video in questa categoria.')}</div>`;
     return;
-  }
-
-  if (section.startsWith('pl_')) {
-    const playlistId = section.replace('pl_', '');
-    const playlist = db.playlists.find((item) => item.id === playlistId);
-    const listVideos = videos.filter((video) => video.playlistId === playlistId);
-    content.innerHTML = `<div class="section-header"><h2 class="section-title">Playlist ${escapeHtml(playlist?.name || '')}</h2></div><div class="video-grid">${listVideos.map(videoCard).join('') || emptyState('Nessun video in questa playlist.')}</div>`;
   }
 }
 
@@ -258,12 +245,6 @@ function videoCard(video) {
   const isTwitter = isTwitterVideo(video);
   const isYouTube = isYouTubeVideo(video);
   return `<div class="video-card" onclick="openVideo('${escapeHtml(video.filename)}')"><div class="video-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(video.title)}" loading="lazy" onerror="this.style.display='none'">` : isTwitter ? '<div class="video-thumb-placeholder twitter-placeholder">X</div>' : isYouTube ? '<div class="video-thumb-placeholder youtube-placeholder">YT</div>' : '<div class="video-thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'}<div class="play-overlay"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>${video.duration ? `<span class="duration-badge">${escapeHtml(video.duration)}</span>` : ''}${isTwitter ? '<span class="x-badge">X</span>' : ''}${isYouTube ? '<span class="youtube-badge">YouTube</span>' : ''}</div><div class="video-info"><div class="video-title">${escapeHtml(video.title)}</div><div class="video-meta"><span>${video.views || 0} visualizzazioni</span><span>·</span><span>${getTimeAgo(video.addedAt)}</span></div></div></div>`;
-}
-
-function playlistCard(playlist) {
-  const videos = getOrderedVideos().filter((video) => video.playlistId === playlist.id && video.type !== 'short');
-  const thumb = getVideoThumb(videos[0]);
-  return `<div class="playlist-card" onclick="filterBySection('pl_${playlist.id}')"><div class="playlist-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(playlist.name)}">` : ''}<div class="playlist-count"><span style="font-size:18px;font-weight:700">${videos.length}</span><span style="font-size:10px">video</span></div></div><div class="playlist-info"><div class="playlist-name">${escapeHtml(playlist.name)}</div><div class="playlist-meta">${escapeHtml(playlist.description || '')}</div></div></div>`;
 }
 
 function openVideo(filename, pushState = true) {

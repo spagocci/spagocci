@@ -325,19 +325,6 @@
 
 .manage-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
-.btn-playlist {
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  font-family: var(--font-body);
-  transition: all 0.2s;
-  background: var(--bg3);
-  color: var(--text2);
-}
-.btn-playlist:hover { border-color: #a855f7; color: #a855f7; }
 
 .btn-edit, .btn-delete {
   padding: 6px 12px;
@@ -464,3 +451,4 @@
   font-size: 14px;
   line-height: 1;
 }
+

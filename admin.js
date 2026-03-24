@@ -40,7 +40,6 @@ async function persist(messageId, successMessage) {
 function renderAll() {
   renderVideoList(getOrderedVideos());
   renderCatList();
-  renderPlList();
   renderOrderList();
   renderCatOrderSelector();
   renderStats();
@@ -122,13 +121,10 @@ function feedback(id, msg, type = '') {
 
 function populateSelects() {
   const catOpts = '<option value="">Nessuna categoria</option>' + db.categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  const plOpts = '<option value="">Nessuna playlist</option>' + db.playlists.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
   ['editCategory', 'twitterCategory', 'youtubeCategory'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = catOpts;
   });
-  const playlist = document.getElementById('editPlaylist');
-  if (playlist) playlist.innerHTML = plOpts;
 }
 
 function previewTwitterThumb(input) {
@@ -198,7 +194,6 @@ async function addTwitterVideo() {
     thumbnail: resolvedThumb,
     duration: '',
     categoryId,
-    playlistId: null,
     type: 'twitter',
     tweetUrl,
     tweetId,
@@ -242,7 +237,6 @@ async function addYoutubeVideo() {
     thumbnail: resolvedThumb,
     duration: '',
     categoryId,
-    playlistId: null,
     type: 'youtube',
     youtubeUrl,
     youtubeId,
@@ -293,9 +287,8 @@ function renderVideoList(videos) {
   }
   list.innerHTML = videos.map((video) => {
     const category = db.categories.find((item) => item.id === video.categoryId);
-    const playlist = db.playlists.find((item) => item.id === video.playlistId);
     const thumb = resolveAsset(video.thumbnail);
-    return `<div class="manage-item" id="vi-${CSS.escape(video.filename)}"><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden;position:relative">${getManageThumbMarkup(video, thumb)}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${getVideoTypeLabel(video)}${category ? ` - ${escapeHtml(category.name)}` : ''}${playlist ? ` - ${escapeHtml(playlist.name)}` : ''}${getVideoSourceUrl(video) ? ` - ${escapeHtml(getVideoSourceUrl(video))}` : ''}</div></div><div class="manage-actions"><button class="btn-edit" onclick="openEditModal('${escapeHtml(video.filename)}')">Modifica</button><button class="btn-delete" onclick="deleteVideo('${escapeHtml(video.filename)}')">Rimuovi</button></div></div>`;
+    return `<div class="manage-item" id="vi-${CSS.escape(video.filename)}"><div class="manage-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;width:80px;height:45px;border-radius:6px;overflow:hidden;position:relative">${getManageThumbMarkup(video, thumb)}</div><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${getVideoTypeLabel(video)}${category ? ` - ${escapeHtml(category.name)}` : ''}${getVideoSourceUrl(video) ? ` - ${escapeHtml(getVideoSourceUrl(video))}` : ''}</div></div><div class="manage-actions"><button class="btn-edit" onclick="openEditModal('${escapeHtml(video.filename)}')">Modifica</button><button class="btn-delete" onclick="deleteVideo('${escapeHtml(video.filename)}')">Rimuovi</button></div></div>`;
   }).join('');
 }
 
@@ -343,36 +336,6 @@ async function deleteCategory(id) {
   renderAll();
 }
 
-async function createPlaylist() {
-  const name = document.getElementById('newPlName').value.trim();
-  const description = document.getElementById('newPlDesc').value.trim();
-  if (!name) return feedback('plFeedback', 'Inserisci un nome.', 'error');
-  db.playlists.push({ id: crypto.randomUUID(), name, description, order: db.playlists.length });
-  document.getElementById('newPlName').value = '';
-  document.getElementById('newPlDesc').value = '';
-  await persist('plFeedback', 'Playlist creata.');
-  renderAll();
-}
-
-function renderPlList() {
-  const list = document.getElementById('plList');
-  if (!db.playlists.length) {
-    list.innerHTML = '<div class="loading-state"><p>Nessuna playlist ancora.</p></div>';
-    return;
-  }
-  list.innerHTML = db.playlists.map((playlist) => `<div class="manage-item drag-item" draggable="true" data-id="${playlist.id}" data-type="pl" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropOn(event,'pl')"><div class="drag-handle">⋮⋮</div><div class="manage-info"><div class="manage-title">${escapeHtml(playlist.name)}</div><div class="manage-meta">${Object.values(db.videos).filter((video) => video.playlistId === playlist.id).length} video · ${escapeHtml(playlist.description || '')}</div></div><div class="manage-actions"><button class="btn-delete" onclick="deletePlaylist('${playlist.id}')">Elimina</button></div></div>`).join('');
-}
-
-async function deletePlaylist(id) {
-  if (!confirm('Eliminare questa playlist?')) return;
-  db.playlists = db.playlists.filter((playlist) => playlist.id !== id);
-  Object.values(db.videos).forEach((video) => {
-    if (video.playlistId === id) video.playlistId = null;
-  });
-  await persist();
-  renderAll();
-}
-
 function renderOrderList() {
   const list = document.getElementById('orderList');
   const videos = getOrderedVideos();
@@ -409,7 +372,6 @@ function dropOn(event, type) {
   if (srcIdx < tgtIdx) parent.insertBefore(dragSrc, target.nextSibling);
   else parent.insertBefore(dragSrc, target);
   if (type === 'cat') saveCatOrder();
-  if (type === 'pl') savePlOrder();
 }
 
 async function saveCatOrder() {
@@ -422,22 +384,11 @@ async function saveCatOrder() {
   renderAll();
 }
 
-async function savePlOrder() {
-  Array.from(document.querySelectorAll('#plList .drag-item')).forEach((el, index) => {
-    const playlist = db.playlists.find((item) => item.id === el.dataset.id);
-    if (playlist) playlist.order = index;
-  });
-  db.playlists.sort((a, b) => a.order - b.order);
-  await persist();
-  renderAll();
-}
-
 function renderStats() {
   const videos = Object.values(db.videos);
   document.getElementById('statTotal').textContent = videos.length;
   document.getElementById('statShorts').textContent = videos.filter((video) => video.type === 'short').length;
   document.getElementById('statCats').textContent = db.categories.length;
-  document.getElementById('statPls').textContent = db.playlists.length;
   document.getElementById('statViews').textContent = videos.reduce((sum, video) => sum + (video.views || 0), 0);
   const top = [...videos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
   document.getElementById('topVideos').innerHTML = top.map((video) => `<div class="manage-item" style="margin-bottom:8px"><div class="manage-info"><div class="manage-title">${escapeHtml(video.title)}</div><div class="manage-meta">${video.views || 0} visualizzazioni</div></div></div>`).join('') || '<p style="color:var(--text3)">Nessun video ancora.</p>';
@@ -484,7 +435,6 @@ function openEditModal(filename) {
   document.getElementById('editTitle').value = video.title || '';
   document.getElementById('editDesc').value = video.description || '';
   document.getElementById('editCategory').value = video.categoryId || '';
-  document.getElementById('editPlaylist').value = video.playlistId || '';
   document.getElementById('editTwitterSection').style.display = isTwitter ? 'block' : 'none';
   document.getElementById('editYoutubeSection').style.display = isYouTube ? 'block' : 'none';
   document.getElementById('editTweetUrl').value = isTwitter ? (video.tweetUrl || video.videoUrl || '') : '';
@@ -597,8 +547,7 @@ async function saveVideoEdit() {
   const update = {
     title: document.getElementById('editTitle').value.trim(),
     description: document.getElementById('editDesc').value.trim(),
-    categoryId: document.getElementById('editCategory').value || null,
-    playlistId: document.getElementById('editPlaylist').value || null
+    categoryId: document.getElementById('editCategory').value || null
   };
   if (!update.title) return feedback('editFeedback', "Il titolo e' obbligatorio.", 'error');
   if (videoType === 'twitter') {

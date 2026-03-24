@@ -35,7 +35,6 @@
     <nav class="admin-sidebar">
       <button class="admin-nav-item active" onclick="showTab('videos', this)">Video</button>
       <button class="admin-nav-item" onclick="showTab('categories', this)">Categorie</button>
-      <button class="admin-nav-item" onclick="showTab('playlists', this)">Playlist</button>
       <button class="admin-nav-item" onclick="showTab('order', this)">Ordine Home</button>
       <button class="admin-nav-item" onclick="showTab('catorder', this)">Ordine Categorie</button>
       <button class="admin-nav-item" onclick="showTab('stats', this)">Statistiche</button>
@@ -163,25 +162,6 @@
         <div class="manage-list" id="catList"></div>
       </div>
 
-      <div class="admin-tab" id="tab-playlists">
-        <h2 class="admin-title">Playlist</h2>
-        <div class="upload-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Nome playlist</label>
-              <input type="text" id="newPlName" placeholder="Nome della playlist">
-            </div>
-            <div class="form-group">
-              <label>Descrizione</label>
-              <input type="text" id="newPlDesc" placeholder="Descrizione (opzionale)">
-            </div>
-          </div>
-          <button class="btn-primary" style="width:auto" onclick="createPlaylist()">Crea playlist</button>
-          <div class="upload-feedback" id="plFeedback"></div>
-        </div>
-        <div class="manage-list" id="plList"></div>
-      </div>
-
       <div class="admin-tab" id="tab-order">
         <h2 class="admin-title">Ordine Video nella Home</h2>
         <button class="btn-secondary" onclick="saveOrder()" style="margin-bottom:16px">Salva ordine</button>
@@ -219,7 +199,6 @@
           <div class="stat-card"><div class="stat-number" id="statTotal">0</div><div class="stat-label">Video totali</div></div>
           <div class="stat-card"><div class="stat-number" id="statShorts">0</div><div class="stat-label">Shorts</div></div>
           <div class="stat-card"><div class="stat-number" id="statCats">0</div><div class="stat-label">Categorie</div></div>
-          <div class="stat-card"><div class="stat-number" id="statPls">0</div><div class="stat-label">Playlist</div></div>
           <div class="stat-card"><div class="stat-number" id="statViews">0</div><div class="stat-label">Visualizzazioni</div></div>
         </div>
         <h3 style="font-size:15px;font-weight:600;margin-bottom:12px">Video più visti</h3>
@@ -287,15 +266,9 @@
       </div>
     </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label>Categoria</label>
-        <select id="editCategory"><option value="">Nessuna categoria</option></select>
-      </div>
-      <div class="form-group">
-        <label>Playlist</label>
-        <select id="editPlaylist"><option value="">Nessuna playlist</option></select>
-      </div>
+    <div class="form-group">
+      <label>Categoria</label>
+      <select id="editCategory"><option value="">Nessuna categoria</option></select>
     </div>
 
     <div class="form-actions">
