@@ -13,6 +13,24 @@ const USATO_NOTIFY_ENABLED_KEY = 'spagocci-usato-notify-enabled';
 const USATO_SEEN_KEY = 'spagocci-usato-seen-v1';
 const USATO_POLL_MS = 30000;
 
+function getChannelNameText() {
+  return db.channelName || window.APP_CONFIG.channelName || 'Davide Spagocci';
+}
+
+function getChannelHandleText() {
+  return window.APP_CONFIG.channelHandle || db.channelHandle || '@DavideSpagocci';
+}
+
+function renderChannelIdentity() {
+  const nameEl = document.querySelector('.channel-name');
+  const handleEl = document.querySelector('.channel-handle');
+  if (nameEl) {
+    if (window.APP_CONFIG.channelNameHtml) nameEl.innerHTML = window.APP_CONFIG.channelNameHtml;
+    else nameEl.textContent = getChannelNameText();
+  }
+  if (handleEl) handleEl.textContent = getChannelHandleText();
+}
+
 function isTwitterVideo(video) {
   if (!video) return false;
   return video.type === 'twitter'
@@ -67,8 +85,7 @@ async function loadData() {
   try {
     const previousDb = db;
     db = await window.SpagocciStore.loadContent();
-    document.querySelector('.channel-name').textContent = db.channelName || window.APP_CONFIG.channelName;
-    document.querySelector('.channel-handle').textContent = db.channelHandle || window.APP_CONFIG.channelHandle;
+    renderChannelIdentity();
     document.getElementById('videoCount').textContent = Object.keys(db.videos).length;
     renderChannelAvatar(db.channelAvatar);
     renderTopTabs();
@@ -94,7 +111,7 @@ function renderChannelAvatar(url) {
   const el = document.getElementById('channelAvatar');
   if (!el) return;
   if (url) el.innerHTML = `<img src="${escapeHtml(resolveAsset(url))}" alt="Avatar">`;
-  else el.textContent = initialsFromName(db.channelName || 'DS');
+  else el.textContent = initialsFromName(getChannelNameText() || 'DS');
 }
 
 function adminAvatarClick() {
