@@ -125,6 +125,14 @@
   }
 
   async function loadContent() {
+    try {
+      const localResponse = await fetch('./api/content', { credentials: 'same-origin' });
+      if (localResponse.ok) {
+        const localResult = await localResponse.json().catch(() => ({}));
+        return normalizeDb(localResult?.data || {});
+      }
+    } catch (_) {}
+
     const { data, error } = await supabase
       .from('site_content')
       .select('data')
