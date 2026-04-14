@@ -12,4 +12,4 @@ Poi apri:
 http://localhost:8787
 ```
 
-Il server salva i dati in `data/site-content.json`.
+Il sito funziona solo dal tuo PC: i dati vengono salvati in `data/site-content.json` e non servono più servizi esterni o abbonamenti.

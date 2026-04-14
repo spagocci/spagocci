@@ -1,6 +1,5 @@
 (function () {
   const config = window.APP_CONFIG;
-  const supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
   function defaultDb() {
     return {
@@ -125,21 +124,12 @@
   }
 
   async function loadContent() {
-    try {
-      const localResponse = await fetch('./api/content', { credentials: 'same-origin' });
-      if (localResponse.ok) {
-        const localResult = await localResponse.json().catch(() => ({}));
-        return normalizeDb(localResult?.data || {});
-      }
-    } catch (_) {}
-
-    const { data, error } = await supabase
-      .from('site_content')
-      .select('data')
-      .eq('slug', config.contentSlug)
-      .single();
-    if (error) throw error;
-    return normalizeDb(data?.data || {});
+    const localResponse = await fetch('./api/content', { credentials: 'same-origin' });
+    if (!localResponse.ok) {
+      throw new Error('Il backend locale non risponde. Avvia il server sul tuo PC con npm start.');
+    }
+    const localResult = await localResponse.json().catch(() => ({}));
+    return normalizeDb(localResult?.data || {});
   }
 
   async function saveContent(nextDb) {
@@ -203,7 +193,6 @@
   }
 
   window.SpagocciStore = {
-    supabase,
     defaultDb,
     normalizeDb,
     loadContent,
